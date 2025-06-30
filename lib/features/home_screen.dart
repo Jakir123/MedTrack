@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../utils/notification_service.dart';
 import 'authentication/auth_viewmodel.dart';
+import 'companies/company_list_screen.dart';
 import 'menu/menu_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -95,7 +96,8 @@ class _HomeScreenState extends State<HomeScreen> {
     final isDark = widget.isDark;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Your Plan Pilot'),
+        title: const Text('Medicine Tracker'),
+        centerTitle: false,
         actions: [
           IconButton(
             icon: Icon(isDark ? Icons.wb_sunny : Icons.nights_stay),
@@ -165,15 +167,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
       )),
-      floatingActionButton: _selectedIndex == 2 
-          ? null 
-          : FloatingActionButton(
-              onPressed: () async {
 
-              },
-              tooltip: 'Add Todo',
-              child: const Icon(Icons.add),
-            ),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _selectedIndex,
         onTap: (index) {
@@ -183,15 +177,28 @@ class _HomeScreenState extends State<HomeScreen> {
         },
         items: const [
           BottomNavigationBarItem(
-            icon: Icon(Icons.list_alt),
-            label: 'Pending',
+            icon: Icon(Icons.inventory_2_outlined),
+            activeIcon: Icon(Icons.inventory_2),
+            label: 'Out of Stock',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.check_circle_outline),
-            label: 'Completed',
+            icon: Icon(Icons.medication_outlined),
+            activeIcon: Icon(Icons.medication),
+            label: 'Medicines',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.menu),
+            icon: Icon(Icons.people_outline),
+            activeIcon: Icon(Icons.people),
+            label: 'Representatives',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.business_outlined),
+            activeIcon: Icon(Icons.business),
+            label: 'Companies',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.menu_outlined),
+            activeIcon: Icon(Icons.menu),
             label: 'Menu',
           ),
         ],
@@ -202,10 +209,14 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _getSelectedScreen(int index) {
     switch (index) {
       case 0:
-        return const MenuScreen();
+        return const CompanyListScreen();
       case 1:
         return const MenuScreen();
       case 2:
+        return const MenuScreen();
+      case 3:
+        return const MenuScreen();
+      case 4:
         return const MenuScreen();
       default:
         return const MenuScreen();

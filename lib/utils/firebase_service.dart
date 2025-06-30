@@ -115,13 +115,13 @@ class FirebaseService {
   Future<void> changePassword(String currentPassword, String newPassword) async {
     final user = _auth.currentUser;
     if (user == null) throw Exception('No user is currently signed in');
-    
+
     // Re-authenticate user
     final credential = EmailAuthProvider.credential(
       email: user.email!,
       password: currentPassword,
     );
-    
+
     await user.reauthenticateWithCredential(credential);
     await user.updatePassword(newPassword);
   }
@@ -131,60 +131,245 @@ class FirebaseService {
     return _auth.currentUser;
   }
 
-  // Save todos and return document reference
-  Future<DocumentReference> saveTodo(String userId, Map<String, dynamic> todo, {bool isAnonymous = false}) async {
-    final col = isAnonymous
-        ? _firestore.collection('anonymous').doc(userId).collection('todos')
-        : _firestore.collection('users').doc(userId).collection('todos');
-    return await col.add(todo);
-  }
+  // Company Operations
 
-  // Update todos
-  Future<void> updateTodo({
-      required String userId,
-      required String docId,
-      required Map<String, dynamic> todo,
-      bool isAnonymous = false
-  }) async {
-    final col = isAnonymous
-        ? _firestore.collection('anonymous').doc(userId).collection('todos')
-        : _firestore.collection('users').doc(userId).collection('todos');
-    await col.doc(docId).update(todo);
-  }
-
-  // Migrate todos from anonymous to user
-  Future<void> migrateTodos(String anonId, String userId) async {
-    final anonTodoSnap = await _firestore.collection('anonymous').doc(anonId).collection('todos').get();
-    final userTodoRef = _firestore.collection('users').doc(userId).collection('todos');
-    for (var doc in anonTodoSnap.docs) {
-      await userTodoRef.add(doc.data());
-      await doc.reference.delete();
+  // Add or update a company
+  Future<DocumentReference> saveCompany(String userId, Map<String, dynamic> companyData, {String? companyId, bool isAnonymous = false}) async {
+    final col = _getUserCollection(userId, 'companies', isAnonymous);
+    if (companyId != null) {
+      await col.doc(companyId).update(companyData);
+      return col.doc(companyId);
+    } else {
+      return await col.add(companyData);
     }
   }
 
-  // Delete todos
-  Future<void> deleteTodo({
-    required String userId,
-    required String docId,
-    required bool isAnonymous,
-  }) async {
-    final ref = isAnonymous
-        ? _firestore.collection('anonymous').doc(userId).collection('todos').doc(docId)
-        : _firestore.collection('users').doc(userId).collection('todos').doc(docId);
-    await ref.delete();
+  // Delete a company
+  Future<void> deleteCompany(String userId, String companyId, {bool isAnonymous = false}) async {
+    final col = _getUserCollection(userId, 'companies', isAnonymous);
+    await col.doc(companyId).delete();
   }
 
-  Future<void> updateTodoCompleteStatus({
-    required String userId,
-    required String docId,
-    required bool isCompleted,
-    required bool isAnonymous,
-  }) async {
-    final ref = isAnonymous
-        ? _firestore.collection('anonymous').doc(userId).collection('todos').doc(docId)
-        : _firestore.collection('users').doc(userId).collection('todos').doc(docId);
-    await ref.update({'isCompleted': isCompleted});
+  // Get all companies for a user
+  Stream<QuerySnapshot> getCompanies(String userId, {bool isAnonymous = false}) {
+    final col = _getUserCollection(userId, 'companies', isAnonymous);
+    return col.snapshots();
   }
+
+
+  // Medicine Operations
+  
+  // Add or update a medicine with company and representative association
+  Future<DocumentReference> saveMedicine({
+    required String userId,
+    required String companyId,
+    required String representativeId,
+    required Map<String, dynamic> medicineData,
+    required int quantity,
+    String? medicineId,
+  }) async {
+    if (quantity < 0) {
+      throw ArgumentError('Quantity cannot be negative');
+    }
+    // First verify the representative belongs to the company
+    final repDoc = await _getUserCollection(userId, 'representatives', false)
+        .doc(representativeId)
+        .get();
+        
+    if (!repDoc.exists || repDoc.data()?['companyId'] != companyId) {
+      throw Exception('Representative does not belong to the specified company');
+    }
+
+    final col = _getUserCollection(userId, 'medicines', false);
+    final now = FieldValue.serverTimestamp();
+    final medicineDataWithRelations = {
+      ...medicineData,
+      'companyId': companyId,
+      'representativeId': representativeId,
+      'updatedAt': now,
+    };
+
+    if (medicineId != null) {
+      await col.doc(medicineId).update(medicineDataWithRelations);
+      return col.doc(medicineId);
+    } else {
+      // Create a new map for the new document
+      final newMedicine = Map<String, dynamic>.from(medicineDataWithRelations)
+        ..addAll({
+          'createdAt': now,
+        });
+      
+      // Set initial quantity and restock date if in stock
+      if (medicineData['isFinished'] != true) {
+        newMedicine['lastRestocked'] = now;
+        newMedicine['quantity'] = quantity;
+      } else {
+        newMedicine['quantity'] = 0; // Out of stock
+      }
+      
+      return await col.add(newMedicine);
+    }
+  }
+
+  // Toggle the isFinished status of a medicine
+  Future<void> toggleMedicineStockStatus({
+    required String userId,
+    required String medicineId,
+    required bool isFinished,
+    required int quantity,
+  }) async {
+    if (quantity < 0) {
+      throw ArgumentError('Quantity cannot be negative');
+    }
+    
+    final now = FieldValue.serverTimestamp();
+    final updateData = <String, dynamic>{
+      'isFinished': isFinished,
+      'updatedAt': now,
+      'quantity': isFinished ? 0 : quantity,
+    };
+    
+    if (isFinished) {
+      // Marking as out of stock - update stockedOutAt
+      updateData['stockedOutAt'] = now;
+    } else {
+      // Marking as in-stock - update lastRestocked
+      updateData['lastRestocked'] = now;
+      // Clear the stockedOutAt since it's no longer out of stock
+      updateData['stockedOutAt'] = FieldValue.delete();
+    }
+    
+    await _getUserCollection(userId, 'medicines', false)
+        .doc(medicineId)
+        .update(updateData);
+  }
+
+  // Delete a medicine
+  Future<void> deleteMedicine(String userId, String medicineId) async {
+    final col = _getUserCollection(userId, 'medicines', false);
+    await col.doc(medicineId).delete();
+    
+    // Note: In a real app, you might want to handle any cleanup or
+    // cascading deletes here if needed
+  }
+
+  // Get all medicines for a company
+  Stream<QuerySnapshot> getMedicinesByCompany(String userId, String companyId) {
+    final col = _getUserCollection(userId, 'medicines', false);
+    return col
+        .where('companyId', isEqualTo: companyId)
+        .orderBy('name')
+        .snapshots();
+  }
+
+  // Get all medicines for a user
+  Stream<QuerySnapshot> getAllMedicines(String userId, {bool isAnonymous = false}) {
+    return _getUserCollection(userId, 'medicines', isAnonymous)
+        .orderBy('name')
+        .snapshots();
+  }
+  
+  // Get all in-stock medicines (isFinished == false)
+  Stream<QuerySnapshot> getInStockMedicines(String userId, {bool isAnonymous = false}) {
+    return _getUserCollection(userId, 'medicines', isAnonymous)
+        .where('isFinished', isEqualTo: false)
+        .orderBy('name')
+        .snapshots();
+  }
+  
+  // Get all out-of-stock medicines (isFinished == true)
+  Stream<QuerySnapshot> getOutOfStockMedicines(String userId, {bool isAnonymous = false}) {
+    return _getUserCollection(userId, 'medicines', isAnonymous)
+        .where('isFinished', isEqualTo: true)
+        .orderBy('name')
+        .snapshots();
+  }
+
+  // Get medicines for a specific representative
+  Stream<QuerySnapshot> getMedicinesByRepresentative(String userId, String representativeId) {
+    final col = _getUserCollection(userId, 'medicines', false);
+    return col
+        .where('representativeId', isEqualTo: representativeId)
+        .orderBy('name')
+        .snapshots();
+  }
+
+  // Representative Operations
+  
+  // Add or update a representative
+  Future<DocumentReference> saveRepresentative({
+    required String userId,
+    required String companyId,
+    required Map<String, dynamic> repData,
+    String? repId,
+  }) async {
+    // Verify company exists
+    final companyDoc = await _getUserCollection(userId, 'companies', false)
+        .doc(companyId)
+        .get();
+        
+    if (!companyDoc.exists) {
+      throw Exception('Company not found');
+    }
+
+    final col = _getUserCollection(userId, 'representatives', false);
+    final repDataWithCompany = {
+      ...repData,
+      'companyId': companyId,
+      'updatedAt': FieldValue.serverTimestamp(),
+    };
+
+    if (repId != null) {
+      await col.doc(repId).update(repDataWithCompany);
+      return col.doc(repId);
+    } else {
+      return await col.add({
+        ...repDataWithCompany,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+    }
+  }
+
+  // Delete a representative
+  Future<void> deleteRepresentative(String userId, String repId) async {
+    final repRef = _getUserCollection(userId, 'representatives', false).doc(repId);
+    
+    // Check if any medicines are assigned to this representative
+    final medicines = await _getUserCollection(userId, 'medicines', false)
+        .where('representativeId', isEqualTo: repId)
+        .limit(1)
+        .get();
+        
+    if (medicines.docs.isNotEmpty) {
+      throw Exception('Cannot delete representative with assigned medicines');
+    }
+    
+    await repRef.delete();
+  }
+
+  // Get all representatives for a company
+  Stream<QuerySnapshot> getRepresentativesByCompany(String userId, String companyId) {
+    final col = _getUserCollection(userId, 'representatives', false);
+    return col
+        .where('companyId', isEqualTo: companyId)
+        .orderBy('name')
+        .snapshots();
+  }
+  
+  // Get a single representative by ID
+  Future<DocumentSnapshot> getRepresentative(String userId, String repId) async {
+    return await _getUserCollection(userId, 'representatives', false)
+        .doc(repId)
+        .get();
+  }
+
+  // Helper method to get the appropriate collection reference
+  CollectionReference<Map<String, dynamic>> _getUserCollection(String userId, String collectionName, bool isAnonymous) {
+    return isAnonymous
+        ? _firestore.collection('anonymous').doc(userId).collection(collectionName)
+        : _firestore.collection('users').doc(userId).collection(collectionName);
+  }
+
 
   Future<void> updateTodoReminderStatus({
     required String userId,
@@ -199,34 +384,4 @@ class FirebaseService {
   }
 
 
-  // Update priority state
-  Future<void> updatePriority({
-    required String userId,
-    required String docId,
-    required String priority,
-    required bool isAnonymous,
-  }) async {
-    final ref = isAnonymous
-        ? _firestore.collection('anonymous').doc(userId).collection('todos').doc(docId)
-        : _firestore.collection('users').doc(userId).collection('todos').doc(docId);
-    await ref.update({'priority': priority});
-  }
-
-
-  // Get completed todos (isCompleted == true) for user or anonymous
-  Stream<QuerySnapshot<Map<String, dynamic>>> completedTodosStream(String userId, {bool isAnonymous = false}) {
-    final col = isAnonymous
-        ? _firestore.collection('anonymous').doc(userId).collection('todos')
-        : _firestore.collection('users').doc(userId).collection('todos');
-    return col.where('isCompleted', isEqualTo: true).snapshots();
-  }
-
-  // Get pending todos (isCompleted == false) for user or anonymous
-  Stream<QuerySnapshot<Map<String, dynamic>>> pendingTodosStream(String userId, {bool isAnonymous = false}) {
-    print('User: ${userId}, isAnonymous: ${isAnonymous}');
-    final col = isAnonymous
-        ? _firestore.collection('anonymous').doc(userId).collection('todos')
-        : _firestore.collection('users').doc(userId).collection('todos');
-    return col.where('isCompleted', isEqualTo: false).snapshots();
-  }
 }

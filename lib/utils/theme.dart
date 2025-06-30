@@ -33,6 +33,17 @@ final ThemeData lightTheme = ThemeData(
     ),
     iconTheme: const IconThemeData(color: Colors.white),
   ),
+  bottomNavigationBarTheme: BottomNavigationBarThemeData(
+    backgroundColor: kLightSurface,
+    selectedItemColor: kLightPrimary,
+    unselectedItemColor: kLightTextSecondary,
+    selectedIconTheme: IconThemeData(color: kLightPrimary),
+    unselectedIconTheme: IconThemeData(color: kLightTextSecondary),
+    selectedLabelStyle: const TextStyle(fontWeight: FontWeight.w600),
+    showUnselectedLabels: false,
+    type: BottomNavigationBarType.shifting,
+    elevation: 8,
+  ),
   cardTheme: CardTheme(
     elevation: 1,
     shape: RoundedRectangleBorder(
@@ -109,6 +120,17 @@ final ThemeData darkTheme = ThemeData(
       color: kDarkTextOnBg,
     ),
     iconTheme: IconThemeData(color: kDarkTextOnBg),
+  ),
+  bottomNavigationBarTheme: BottomNavigationBarThemeData(
+    backgroundColor: kDarkSurface,
+    selectedItemColor: kDarkPrimary,
+    unselectedItemColor: kDarkTextSecondary,
+    selectedIconTheme: IconThemeData(color: kDarkPrimary),
+    unselectedIconTheme: IconThemeData(color: kDarkTextSecondary),
+    selectedLabelStyle: const TextStyle(fontWeight: FontWeight.w600),
+    showUnselectedLabels: false,
+    type: BottomNavigationBarType.shifting,
+    elevation: 8,
   ),
   cardTheme: CardTheme(
     elevation: 2,

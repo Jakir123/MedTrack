@@ -50,10 +50,7 @@ class AuthViewModel extends ChangeNotifier {
     try {
       final user = await _firebaseService.signInV2(_loginEmail, _loginPassword);
       _user = user;
-      // If previous user was anonymous and new user is not anonymous, migrate vocabularies
-      if (wasAnonymous && prevAnonUid != null && user != null && !user.isAnonymous) {
-        await _firebaseService.migrateTodos(prevAnonUid, user.uid);
-      }
+
       notifyListeners();
       return true;
     } on FirebaseAuthException catch (e) {
@@ -98,11 +95,6 @@ class AuthViewModel extends ChangeNotifier {
 
       // Check if email is verified (it shouldn't be right after signup)
       final isVerified = await checkEmailVerification();
-
-      // If previous user was anonymous and new user is not anonymous, migrate todos
-      if (wasAnonymous && prevAnonUid != null && user != null && !user.isAnonymous && isVerified) {
-        await _firebaseService.migrateTodos(prevAnonUid, user.uid);
-      }
 
       notifyListeners();
       return isVerified;

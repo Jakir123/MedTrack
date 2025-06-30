@@ -167,7 +167,7 @@ class _SignInScreenState extends State<SignInScreen> {
                         ),
                         const SizedBox(height: 10),
                         SizedBox(
-                          height: 48,
+                          height: 58,
                           child: ElevatedButton(
                             onPressed:
                             vm.isLoading

@@ -4,10 +4,11 @@ import 'package:android_alarm_manager_plus/android_alarm_manager_plus.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:med_track/screens/authentication/auth_screen.dart';
-import 'package:med_track/screens/authentication/auth_viewmodel.dart';
-import 'package:med_track/screens/home_screen.dart';
-import 'package:med_track/screens/onboarding_screen.dart';
+import 'package:med_track/features/authentication/auth_screen.dart';
+import 'package:med_track/features/authentication/auth_viewmodel.dart';
+import 'package:med_track/features/companies/company_viewmodel.dart';
+import 'package:med_track/features/home_screen.dart';
+import 'package:med_track/features/onboarding_screen.dart';
 import 'package:med_track/utils/notification_service.dart';
 import 'package:med_track/utils/session_manager.dart';
 import 'package:med_track/utils/theme.dart';
@@ -124,6 +125,7 @@ class _MyAppState extends State<MyApp> {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider<AuthViewModel>(create: (_) => AuthViewModel()),
+        ChangeNotifierProvider<CompanyViewModel>(create: (_) => CompanyViewModel()),
       ],
       child: MaterialApp(
         debugShowCheckedModeBanner: false,

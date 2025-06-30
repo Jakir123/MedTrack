@@ -149,7 +149,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                           child: Text(vm.authError!, style: const TextStyle(color: Colors.red)),
                         ),
                       SizedBox(
-                        height: 48,
+                        height: 50,
                         child: ElevatedButton(
                           onPressed: vm.isLoading
                               ? null

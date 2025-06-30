@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:med_track/screens/authentication/sign_in_screen.dart';
-import 'package:med_track/screens/authentication/sign_up_screen.dart';
+import 'package:med_track/features/authentication/sign_in_screen.dart';
+import 'package:med_track/features/authentication/sign_up_screen.dart';
 
 class AuthScreen extends StatefulWidget {
   final bool isDark;
