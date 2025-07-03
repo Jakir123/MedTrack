@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:med_track/features/authentication/auth_screen.dart';
 import 'package:med_track/features/authentication/auth_viewmodel.dart';
 import 'package:med_track/features/companies/company_viewmodel.dart';
+import 'package:med_track/features/representatives/representative_viewmodel.dart';
 import 'package:med_track/features/home_screen.dart';
 import 'package:med_track/features/onboarding_screen.dart';
 import 'package:med_track/utils/notification_service.dart';
@@ -126,6 +127,7 @@ class _MyAppState extends State<MyApp> {
       providers: [
         ChangeNotifierProvider<AuthViewModel>(create: (_) => AuthViewModel()),
         ChangeNotifierProvider<CompanyViewModel>(create: (_) => CompanyViewModel()),
+        ChangeNotifierProvider<RepresentativeViewModel>(create: (_) => RepresentativeViewModel()),
       ],
       child: MaterialApp(
         debugShowCheckedModeBanner: false,

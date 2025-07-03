@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:med_track/features/representatives/representative_list_screen.dart';
 import 'package:provider/provider.dart';
 
 import '../utils/notification_service.dart';
@@ -213,9 +214,9 @@ class _HomeScreenState extends State<HomeScreen> {
       case 1:
         return const MenuScreen();
       case 2:
-        return const MenuScreen();
+        return const RepresentativeListScreen();
       case 3:
-        return const MenuScreen();
+        return const CompanyListScreen();
       case 4:
         return const MenuScreen();
       default:

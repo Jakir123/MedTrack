@@ -362,6 +362,11 @@ class FirebaseService {
         .doc(repId)
         .get();
   }
+  Stream<QuerySnapshot> getAllRepresentatives(String userId, {bool isAnonymous = false}) {
+    return _getUserCollection(userId, 'representatives', isAnonymous)
+        .orderBy('name')
+        .snapshots();
+  }
 
   // Helper method to get the appropriate collection reference
   CollectionReference<Map<String, dynamic>> _getUserCollection(String userId, String collectionName, bool isAnonymous) {
