@@ -9,9 +9,13 @@ class RepresentativeViewModel extends ChangeNotifier {
   String? _error;
   String? _currentUserId;
 
+  // Local cache of representatives
+  final List<Representative> _representatives = [];
+
   // Getters
   bool get isLoading => _isLoading;
   String? get error => _error;
+  List<Representative> get representatives => List.unmodifiable(_representatives);
 
   // Set loading state
   void _setLoading(bool loading) {
@@ -28,6 +32,50 @@ class RepresentativeViewModel extends ChangeNotifier {
   // Initialize with user ID
   void initialize(String userId) {
     _currentUserId = userId;
+  }
+
+  // Fetch all representatives for the current user
+  Future<void> fetchRepresentatives(String userId, {bool isAnonymous = false}) async {
+    if (userId.isEmpty) return;
+    
+    _setLoading(true);
+    _error = null;
+    
+    try {
+      final snapshot = await _firebaseService
+          .getAllRepresentatives(userId, isAnonymous: isAnonymous)
+          .first;
+          
+      _representatives.clear();
+      _representatives.addAll(
+        snapshot.docs.map((doc) => 
+          Representative.fromMap(doc.data() as Map<String, dynamic>, doc.id)
+        ).toList()
+      );
+      notifyListeners();
+    } catch (e) {
+      _setError('Failed to load representatives: $e');
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  // Stream of representatives for the current user
+  Stream<List<Representative>> streamRepresentativesByCompanyId(String companyId) {
+    if (_currentUserId == null) {
+      return Stream.empty();
+    }
+
+    return _firebaseService
+        .getRepresentativesByCompany(_currentUserId!, companyId)
+        .map((snapshot) => snapshot.docs
+        .map((doc) =>
+        Representative.fromMap(doc.data() as Map<String, dynamic>, doc.id))
+        .toList())
+        .handleError((error) {
+      _setError('Error loading representatives: $error');
+      return [];
+    });
   }
 
   // Stream of representatives for the current user

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:med_track/features/medicines/medicine_list_screen.dart';
 import 'package:med_track/features/representatives/representative_list_screen.dart';
 import 'package:provider/provider.dart';
 
@@ -10,10 +11,15 @@ import 'menu/menu_screen.dart';
 class HomeScreen extends StatefulWidget {
   final bool isDark;
   final VoidCallback onThemeToggle;
+  final String? userId;
+  final bool isAnonymous;
+  
   const HomeScreen({
     super.key,
     required this.isDark,
     required this.onThemeToggle,
+    this.userId,
+    this.isAnonymous = false,
   });
 
   @override
@@ -210,15 +216,18 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _getSelectedScreen(int index) {
     switch (index) {
       case 0:
-        return const CompanyListScreen();
-      case 1:
         return const MenuScreen();
+      case 1:
+        return MedicineListScreen(
+          userId: widget.userId,
+          isAnonymous: widget.isAnonymous,
+        );
       case 2:
         return const RepresentativeListScreen();
       case 3:
         return const CompanyListScreen();
       case 4:
-        return const MenuScreen();
+        return const CompanyListScreen();
       default:
         return const MenuScreen();
     }

@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:med_track/features/authentication/auth_screen.dart';
 import 'package:med_track/features/authentication/auth_viewmodel.dart';
 import 'package:med_track/features/companies/company_viewmodel.dart';
+import 'package:med_track/features/medicines/medicine_viewmodel.dart';
 import 'package:med_track/features/representatives/representative_viewmodel.dart';
 import 'package:med_track/features/home_screen.dart';
 import 'package:med_track/features/onboarding_screen.dart';
@@ -37,6 +38,7 @@ class _MyAppState extends State<MyApp> {
   bool _initialized = false;
   bool _onboardingCompleted = false;
   bool _isLoggedIn = false;
+  String? _userId = null;
   late StreamSubscription<User?> _authSubscription;
 
   @override
@@ -95,6 +97,7 @@ class _MyAppState extends State<MyApp> {
       isDark = themeMode == ThemeMode.dark;
       _onboardingCompleted = onboardingCompleted;
       _isLoggedIn = user != null && !user.isAnonymous;
+      _userId = user?.uid;
       _initialized = true;
     });
   }
@@ -128,6 +131,7 @@ class _MyAppState extends State<MyApp> {
         ChangeNotifierProvider<AuthViewModel>(create: (_) => AuthViewModel()),
         ChangeNotifierProvider<CompanyViewModel>(create: (_) => CompanyViewModel()),
         ChangeNotifierProvider<RepresentativeViewModel>(create: (_) => RepresentativeViewModel()),
+        ChangeNotifierProvider<MedicineViewModel>(create: (_) => MedicineViewModel()),
       ],
       child: MaterialApp(
         debugShowCheckedModeBanner: false,
@@ -160,6 +164,7 @@ class _MyAppState extends State<MyApp> {
 
             return HomeScreen(
               isDark: isDark,
+              userId: _userId,
               onThemeToggle: toggleTheme,
             );
           },
