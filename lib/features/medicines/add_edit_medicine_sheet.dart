@@ -37,7 +37,7 @@ class _AddEditMedicineSheetState extends State<AddEditMedicineSheet> {
     super.initState();
     _nameController = TextEditingController(text: widget.medicine?.name ?? '');
     _quantityController = TextEditingController(
-      text: widget.medicine?.quantityInStock?.toString() ?? '',
+      text: widget.medicine?.quantityInStock == 0 ? '' : widget.medicine?.quantityInStock?.toString() ?? '',
     );
     _selectedCompanyId = widget.medicine?.companyId;
     _selectedRepresentativeId = widget.medicine?.representativeId;

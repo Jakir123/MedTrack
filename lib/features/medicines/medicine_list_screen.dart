@@ -71,6 +71,32 @@ class MedicineListScreen extends StatefulWidget {
 }
 
 class _MedicineListScreenState extends State<MedicineListScreen> {
+  final Map<String, int> _originalQuantities = {};
+
+  void _toggleStockOut(Medicine medicine) async {
+    final viewModel = context.read<MedicineViewModel>();
+    
+    if (medicine.quantityInStock == 0) {
+      // If currently out of stock, restore original quantity
+      final originalQuantity = _originalQuantities[medicine.id];
+      if (originalQuantity != null) {
+        await viewModel.updateMedicine(
+          medicine.copyWith(quantityInStock: originalQuantity),
+          widget.userId,
+          isAnonymous: widget.isAnonymous,
+        );
+        _originalQuantities.remove(medicine.id);
+      }
+    } else {
+      // If in stock, mark as out of stock and store original quantity
+      _originalQuantities[medicine.id] = medicine.quantityInStock!;
+      await viewModel.updateMedicine(
+        medicine.copyWith(quantityInStock: 0),
+        widget.userId,
+        isAnonymous: widget.isAnonymous,
+      );
+    }
+  }
   List<DropdownMenuItem<String>> _buildRepresentativeDropdownItems(RepresentativeViewModel repVm) {
     if (_selectedCompanyId == null) {
       return [
@@ -260,9 +286,19 @@ class _MedicineListScreenState extends State<MedicineListScreen> {
                         vertical: 4,
                       ),
                       child: ListTile(
-                        title: Text(
-                          medicine.name,
-                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        title: Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                medicine.name,
+                                style: const TextStyle(fontWeight: FontWeight.bold),
+                              ),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.edit),
+                              onPressed: () => _showAddEditMedicine(medicine: medicine),
+                            ),
+                          ],
                         ),
                         subtitle: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -272,31 +308,61 @@ class _MedicineListScreenState extends State<MedicineListScreen> {
                             if (medicine.representativeName != null)
                               Text('Rep: ${medicine.representativeName}'),
                             if (medicine.quantityInStock != null && medicine.quantityInStock! > 0)
-                              Text('In Stock: ${medicine.quantityInStock}'),
-                            if (medicine.quantityInStock == null || medicine.quantityInStock == 0)
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                                decoration: BoxDecoration(
-                                  color: Colors.red,
-                                  borderRadius: BorderRadius.circular(4),
-                                ),
-                                child: const Text(
-                                  'Out of Stock',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 12,
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: Theme.of(context).primaryColor,
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: Text(
+                                      'In Stock: ${medicine.quantityInStock}',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 12,
+                                      ),
+                                    ),
                                   ),
-                                ),
+                                  Switch(
+                                    value: medicine.quantityInStock == 0,
+                                    onChanged: (value) => _toggleStockOut(medicine),
+                                    activeColor: Colors.red,
+                                    inactiveThumbColor: Theme.of(context).primaryColor,
+                                    inactiveTrackColor: Theme.of(context).primaryColor.withOpacity(0.5),
+                                    trackOutlineColor: WidgetStateProperty.all(Colors.transparent),
+                                  ),
+                                ],
                               ),
-                          ],
-                        ),
-                        trailing: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            IconButton(
-                              icon: const Icon(Icons.edit),
-                              onPressed: () => _showAddEditMedicine(medicine: medicine),
-                            ),
+                            if (medicine.quantityInStock == null || medicine.quantityInStock == 0)
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: Colors.red,
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: const Text(
+                                      'Out of Stock',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  ),
+                                  // Switch(
+                                  //   value: medicine.quantityInStock == 0,
+                                  //   onChanged: (value) => _toggleStockOut(medicine),
+                                  //   activeColor: Colors.red,
+                                  //   inactiveThumbColor: Theme.of(context).primaryColor,
+                                  //   inactiveTrackColor: Theme.of(context).primaryColor.withOpacity(0.5),
+                                  //   trackOutlineColor: WidgetStateProperty.all(Colors.transparent),
+                                  // ),
+                                ],
+                              ),
                           ],
                         ),
                         onTap: () => _showAddEditMedicine(medicine: medicine),
