@@ -271,8 +271,23 @@ class _MedicineListScreenState extends State<MedicineListScreen> {
                               Text('Company: ${medicine.companyName}'),
                             if (medicine.representativeName != null)
                               Text('Rep: ${medicine.representativeName}'),
-                            if (medicine.quantityInStock != null)
+                            if (medicine.quantityInStock != null && medicine.quantityInStock! > 0)
                               Text('In Stock: ${medicine.quantityInStock}'),
+                            if (medicine.quantityInStock == null || medicine.quantityInStock == 0)
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: Colors.red,
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: const Text(
+                                  'Out of Stock',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ),
                           ],
                         ),
                         trailing: Row(
