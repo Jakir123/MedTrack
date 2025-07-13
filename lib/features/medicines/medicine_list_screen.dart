@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:med_track/features/medicines/add_edit_medicine_sheet.dart';
 import 'package:med_track/features/medicines/medicine_model.dart';
 import 'package:med_track/features/medicines/medicine_viewmodel.dart';
-import 'package:med_track/features/companies/company_viewmodel.dart';
-import 'package:med_track/features/medicines/add_edit_medicine_sheet.dart';
-import 'package:med_track/features/representatives/representative_viewmodel.dart';
 import 'package:med_track/widgets/search_bar.dart' as custom;
+import 'package:provider/provider.dart';
 
 // Simple loading widget
 class LoadingIndicator extends StatelessWidget {
@@ -16,6 +14,22 @@ class LoadingIndicator extends StatelessWidget {
     return const Center(
       child: CircularProgressIndicator(),
     );
+  }
+}
+
+enum SortField {
+  name,
+  quantity,
+}
+
+extension SortFieldExtension on SortField {
+  String get displayName {
+    switch (this) {
+      case SortField.name:
+        return 'Name';
+      case SortField.quantity:
+        return 'Quantity';
+    }
   }
 }
 
@@ -97,53 +111,26 @@ class _MedicineListScreenState extends State<MedicineListScreen> {
       );
     }
   }
-  List<DropdownMenuItem<String>> _buildRepresentativeDropdownItems(RepresentativeViewModel repVm) {
-    if (_selectedCompanyId == null) {
-      return [
-        const DropdownMenuItem<String>(
-          value: null,
-          child: Text('Select a company first'),
-        ),
-      ];
-    }
 
-    // Add a null check for representatives list
-    if (repVm.representatives == null) {
-      return [
-        const DropdownMenuItem<String>(
-          value: null,
-          child: Text('Loading...'),
-        ),
-      ];
-    }
-
-    final repsForCompany = repVm.representatives!
-        .where((rep) => rep.companyId == _selectedCompanyId)
-        .toList();
-
-    if (repsForCompany.isEmpty) {
-      return [
-        const DropdownMenuItem<String>(
-          value: null,
-          child: Text('No representatives found'),
-        ),
-      ];
-    }
-
-    return [
-      const DropdownMenuItem<String>(
-        value: null,
-        child: Text('All Representatives'),
-      ),
-      ...repsForCompany.map<DropdownMenuItem<String>>((rep) => DropdownMenuItem<String>(
-            value: rep.id,
-            child: Text(rep.name),
-          )),
-    ];
-  }
   final TextEditingController _searchController = TextEditingController();
-  String? _selectedCompanyId;
-  String? _selectedRepresentativeId;
+
+  SortField? _sortField;
+  bool _isAscending = true;
+
+  void _toggleSort(SortField field) {
+    if (_sortField == field) {
+      _isAscending = !_isAscending;
+    } else {
+      _sortField = field;
+      _isAscending = true;
+    }
+    
+    // Hide keyboard and clear focus
+    FocusScope.of(context).requestFocus(FocusNode());
+    
+    setState(() {});
+    context.read<MedicineViewModel>().sortMedicines(field, _isAscending);
+  }
 
   @override
   void initState() {
@@ -160,66 +147,6 @@ class _MedicineListScreenState extends State<MedicineListScreen> {
     super.dispose();
   }
 
-  void _showFilters() {
-    final companyVm = context.read<CompanyViewModel>();
-    final repVm = context.read<RepresentativeViewModel>();
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      builder: (context) => Container(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const Text(
-              'Filter Medicines',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 16),
-            DropdownButtonFormField<String>(
-              value: _selectedCompanyId,
-              decoration: const InputDecoration(
-                labelText: 'Filter by Company',
-                border: OutlineInputBorder(),
-              ),
-              items: [
-                const DropdownMenuItem(
-                  value: null,
-                  child: Text('All Companies'),
-                ),
-                ...companyVm.companies.map((company) {
-                  return DropdownMenuItem(
-                    value: company.id,
-                    child: Text(company.name),
-                  );
-                }).toList(),
-              ],
-              onChanged: (value) {
-                setState(() => _selectedCompanyId = value);
-                context.read<MedicineViewModel>().setCompanyFilter(value);
-                Navigator.pop(context);
-              },
-            ),
-
-            const SizedBox(height: 16),
-            TextButton(
-              onPressed: () {
-                setState(() {
-                  _selectedCompanyId = null;
-                  _selectedRepresentativeId = null;
-                });
-                context.read<MedicineViewModel>().clearFilters();
-                Navigator.pop(context);
-              },
-              child: const Text('Clear All Filters'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 
   void _showAddEditMedicine({Medicine? medicine}) {
     showModalBottomSheet(
@@ -240,12 +167,63 @@ class _MedicineListScreenState extends State<MedicineListScreen> {
         children: [
           Padding(
             padding: const EdgeInsets.all(16.0),
-            child: custom.SearchBar(
-              controller: _searchController,
-              hintText: 'Search medicines...',
-              onChanged: (value) {
-                context.read<MedicineViewModel>().setSearchQuery(value);
-              },
+            child: Row(
+              children: [
+                Expanded(
+                  child: custom.SearchBar(
+                    controller: _searchController,
+                    hintText: 'Search medicines...',
+                    onChanged: (value) {
+                      context.read<MedicineViewModel>().setSearchQuery(value);
+                    },
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.filter_list),
+                  onPressed: () {
+                    showMenu<SortField>(
+                      context: context,
+                      position: RelativeRect.fromLTRB(
+                        MediaQuery.of(context).size.width - 56,
+                        128,
+                        MediaQuery.of(context).size.width,
+                        192,
+                      ),
+                      items: SortField.values.map((field) {
+                        return PopupMenuItem<SortField>(
+                          value: field,
+                          child: Row(
+                              children: [
+                                Icon(
+                                  field == SortField.name 
+                                      ? Icons.sort_by_alpha
+                                      : Icons.sort,
+                                  color: field == _sortField 
+                                      ? Theme.of(context).colorScheme.primary
+                                      : Theme.of(context).colorScheme.onSurface,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  field.displayName,
+                                  style: TextStyle(
+                                    color: field == _sortField 
+                                        ? Theme.of(context).colorScheme.primary
+                                        : Theme.of(context).colorScheme.onSurface,
+                                  ),
+                                ),
+                              ],
+                          ),
+                        );
+                      }).toList(),
+                    ).then((value) {
+                      if (value != null) {
+                        _toggleSort(value);
+                      }
+                    });
+                  },
+                  tooltip: 'Sort Options',
+                ),
+              ],
             ),
           ),
           Consumer<MedicineViewModel>(

@@ -3,22 +3,20 @@ import 'package:flutter/foundation.dart';
 import 'package:med_track/features/medicines/medicine_model.dart';
 import 'package:med_track/utils/firebase_service.dart';
 
+import 'medicine_list_screen.dart';
+
 class MedicineViewModel extends ChangeNotifier {
   final FirebaseService _firebaseService = FirebaseService();
   bool _isLoading = false;
   String? _error;
   List<Medicine> _medicines = [];
   String? _searchQuery;
-  String? _companyFilter;
-  String? _representativeFilter;
 
   // Getters
   bool get isLoading => _isLoading;
   String? get error => _error;
   List<Medicine> get medicines => _filteredMedicines;
   String? get searchQuery => _searchQuery;
-  String? get companyFilter => _companyFilter;
-  String? get representativeFilter => _representativeFilter;
 
   // Get filtered medicines based on search and filters
   List<Medicine> get _filteredMedicines {
@@ -32,16 +30,6 @@ class MedicineViewModel extends ChangeNotifier {
             (medicine.companyName?.toLowerCase().contains(query) ?? false) ||
             (medicine.representativeName?.toLowerCase().contains(query) ?? false);
       }).toList();
-    }
-
-    // Apply company filter
-    if (_companyFilter != null) {
-      result = result.where((m) => m.companyId == _companyFilter).toList();
-    }
-
-    // Apply representative filter
-    if (_representativeFilter != null) {
-      result = result.where((m) => m.representativeId == _representativeFilter).toList();
     }
 
     return result;
@@ -69,23 +57,30 @@ class MedicineViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  // Set company filter
-  void setCompanyFilter(String? companyId) {
-    _companyFilter = companyId;
-    notifyListeners();
-  }
-
-  // Set representative filter
-  void setRepresentativeFilter(String? representativeId) {
-    _representativeFilter = representativeId;
-    notifyListeners();
-  }
 
   // Clear all filters
   void clearFilters() {
     _searchQuery = null;
-    _companyFilter = null;
-    _representativeFilter = null;
+    notifyListeners();
+  }
+
+  // Sort medicines by a specific field
+  void sortMedicines(SortField field, bool isAscending) {
+    _medicines.sort((a, b) {
+      switch (field) {
+        case SortField.name:
+          return isAscending 
+              ? a.name.compareTo(b.name)
+              : b.name.compareTo(a.name);
+        case SortField.quantity:
+          final aStock = a.quantityInStock ?? 0;
+          final bStock = b.quantityInStock ?? 0;
+          return isAscending 
+              ? aStock.compareTo(bStock)
+              : bStock.compareTo(aStock);
+      }
+      return 0;
+    });
     notifyListeners();
   }
 
