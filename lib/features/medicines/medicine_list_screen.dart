@@ -17,6 +17,37 @@ class LoadingIndicator extends StatelessWidget {
   }
 }
 
+enum TimeRange {
+  all,
+  today,
+  last7Days,
+  last15Days,
+  lastMonth,
+  last6Months,
+  thisYear
+}
+
+extension TimeRangeExtension on TimeRange {
+  String get displayName {
+    switch (this) {
+      case TimeRange.all:
+        return 'All';
+      case TimeRange.today:
+        return 'Today';
+      case TimeRange.last7Days:
+        return 'Last 7 Days';
+      case TimeRange.last15Days:
+        return 'Last 15 Days';
+      case TimeRange.lastMonth:
+        return 'Last Month';
+      case TimeRange.last6Months:
+        return 'Last 6 Months';
+      case TimeRange.thisYear:
+        return 'This Year';
+    }
+  }
+}
+
 enum SortField {
   name,
   quantity,
@@ -87,6 +118,11 @@ class MedicineListScreen extends StatefulWidget {
 class _MedicineListScreenState extends State<MedicineListScreen> {
   final Map<String, int> _originalQuantities = {};
 
+  void _hideKeyboard(){
+    // Hide keyboard and clear focus
+    FocusScope.of(context).requestFocus(FocusNode());
+  }
+
   void _toggleStockOut(Medicine medicine) async {
     final viewModel = context.read<MedicineViewModel>();
     
@@ -116,6 +152,38 @@ class _MedicineListScreenState extends State<MedicineListScreen> {
 
   SortField? _sortField;
   bool _isAscending = true;
+  TimeRange? _selectedTimeRange = TimeRange.all;
+
+  void _applyTimeRangeFilter(TimeRange range) {
+    final now = DateTime.now();
+    DateTime? startDate;
+    
+    switch (range) {
+      case TimeRange.today:
+        startDate = DateTime(now.year, now.month, now.day);
+        break;
+      case TimeRange.last7Days:
+        startDate = now.subtract(const Duration(days: 7));
+        break;
+      case TimeRange.last15Days:
+        startDate = now.subtract(const Duration(days: 15));
+        break;
+      case TimeRange.lastMonth:
+        startDate = now.subtract(const Duration(days: 30));
+        break;
+      case TimeRange.last6Months:
+        startDate = now.subtract(const Duration(days: 180));
+        break;
+      case TimeRange.thisYear:
+        startDate = DateTime(now.year, 1, 1);
+        break;
+      case TimeRange.all:
+        startDate = null;
+        break;
+    }
+
+    context.read<MedicineViewModel>().setTimeRangeFilter(startDate);
+  }
 
   void _toggleSort(SortField field) {
     if (_sortField == field) {
@@ -124,10 +192,7 @@ class _MedicineListScreenState extends State<MedicineListScreen> {
       _sortField = field;
       _isAscending = true;
     }
-    
-    // Hide keyboard and clear focus
-    FocusScope.of(context).requestFocus(FocusNode());
-    
+    _hideKeyboard();
     setState(() {});
     context.read<MedicineViewModel>().sortMedicines(field, _isAscending);
   }
@@ -166,62 +231,99 @@ class _MedicineListScreenState extends State<MedicineListScreen> {
       body: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Row(
+            padding: const EdgeInsets.fromLTRB(16, 6, 16, 8),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(
-                  child: custom.SearchBar(
-                    controller: _searchController,
-                    hintText: 'Search medicines...',
-                    onChanged: (value) {
-                      context.read<MedicineViewModel>().setSearchQuery(value);
-                    },
-                  ),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.filter_list),
-                  onPressed: () {
-                    showMenu<SortField>(
-                      context: context,
-                      position: RelativeRect.fromLTRB(
-                        MediaQuery.of(context).size.width - 56,
-                        128,
-                        MediaQuery.of(context).size.width,
-                        192,
+                Row(
+                  children: [
+                    Expanded(
+                      child: custom.SearchBar(
+                        controller: _searchController,
+                        hintText: 'Search medicines...',
+                        onChanged: (value) {
+                          context.read<MedicineViewModel>().setSearchQuery(value);
+                        },
                       ),
-                      items: SortField.values.map((field) {
-                        return PopupMenuItem<SortField>(
-                          value: field,
-                          child: Row(
-                              children: [
-                                Icon(
-                                  field == SortField.name 
-                                      ? Icons.sort_by_alpha
-                                      : Icons.sort,
-                                  color: field == _sortField 
-                                      ? Theme.of(context).colorScheme.primary
-                                      : Theme.of(context).colorScheme.onSurface,
-                                ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  field.displayName,
-                                  style: TextStyle(
-                                    color: field == _sortField 
-                                        ? Theme.of(context).colorScheme.primary
-                                        : Theme.of(context).colorScheme.onSurface,
-                                  ),
-                                ),
-                              ],
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.filter_list),
+                      onPressed: () {
+                        _hideKeyboard();
+                        showMenu<SortField>(
+                          context: context,
+                          position: RelativeRect.fromLTRB(
+                            MediaQuery.of(context).size.width - 56,
+                            128,
+                            MediaQuery.of(context).size.width,
+                            192,
                           ),
-                        );
-                      }).toList(),
-                    ).then((value) {
-                      if (value != null) {
-                        _toggleSort(value);
-                      }
-                    });
-                  },
-                  tooltip: 'Sort Options',
+                          items: SortField.values.map((field) {
+                            return PopupMenuItem<SortField>(
+                              value: field,
+                              child: Row(
+                                  children: [
+                                    Icon(
+                                      field == SortField.name 
+                                          ? Icons.sort_by_alpha
+                                          : Icons.sort,
+                                      color: field == _sortField 
+                                          ? Theme.of(context).colorScheme.primary
+                                          : Theme.of(context).colorScheme.onSurface,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      field.displayName,
+                                      style: TextStyle(
+                                        color: field == _sortField 
+                                            ? Theme.of(context).colorScheme.primary
+                                            : Theme.of(context).colorScheme.onSurface,
+                                      ),
+                                    ),
+                                  ],
+                              ),
+                            );
+                          }).toList(),
+                        ).then((value) {
+                          if (value != null) {
+                            _toggleSort(value);
+                          }
+                        });
+                      },
+                      tooltip: 'Sort Options',
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: TimeRange.values.map((range) {
+                      return Padding(
+                        padding: const EdgeInsets.only(right: 8.0),
+                        child: FilterChip(
+                          checkmarkColor: Colors.white,
+                          showCheckmark: false,
+                          label: Text(range.displayName),
+                          selected: _selectedTimeRange == range,
+                          onSelected: (selected) {
+                            if (selected) {
+                              setState(() {
+                                _selectedTimeRange = range;
+                              });
+                              _applyTimeRangeFilter(range);
+                            }
+                          },
+                          selectedColor: Theme.of(context).colorScheme.primaryContainer,
+                          labelStyle: TextStyle(
+                            color: _selectedTimeRange == range 
+                                ? Colors.white
+                                : Theme.of(context).colorScheme.onSurface,
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
                 ),
               ],
             ),

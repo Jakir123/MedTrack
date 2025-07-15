@@ -11,24 +11,35 @@ class MedicineViewModel extends ChangeNotifier {
   String? _error;
   List<Medicine> _medicines = [];
   String? _searchQuery;
+  DateTime? _timeRangeStart;
+  DateTime? _timeRangeEnd;
 
   // Getters
   bool get isLoading => _isLoading;
   String? get error => _error;
   List<Medicine> get medicines => _filteredMedicines;
   String? get searchQuery => _searchQuery;
+  DateTime? get timeRangeStart => _timeRangeStart;
+  DateTime? get timeRangeEnd => _timeRangeEnd;
 
   // Get filtered medicines based on search and filters
   List<Medicine> get _filteredMedicines {
-    var result = List<Medicine>.from(_medicines);
+    List<Medicine> result = _medicines;
 
     // Apply search filter
     if (_searchQuery != null && _searchQuery!.isNotEmpty) {
-      final query = _searchQuery!.toLowerCase();
-      result = result.where((medicine) {
-        return medicine.name.toLowerCase().contains(query) ||
-            (medicine.companyName?.toLowerCase().contains(query) ?? false) ||
-            (medicine.representativeName?.toLowerCase().contains(query) ?? false);
+      result = result.where((m) {
+        return m.name.toLowerCase().contains(_searchQuery!.toLowerCase()) ||
+               (m.companyName?.toLowerCase().contains(_searchQuery!.toLowerCase()) ?? false) ||
+               (m.representativeName?.toLowerCase().contains(_searchQuery!.toLowerCase()) ?? false);
+      }).toList();
+    }
+
+    // Apply time range filter
+    if (_timeRangeStart != null) {
+      result = result.where((m) {
+        final createdAt = m.updatedAt ?? DateTime.now();
+        return createdAt.isAfter(_timeRangeStart!) || createdAt.isAtSameMomentAs(_timeRangeStart!);
       }).toList();
     }
 
@@ -54,6 +65,11 @@ class MedicineViewModel extends ChangeNotifier {
   // Set search query
   void setSearchQuery(String? query) {
     _searchQuery = query;
+    notifyListeners();
+  }
+
+  void setTimeRangeFilter(DateTime? startDate) {
+    _timeRangeStart = startDate;
     notifyListeners();
   }
 
