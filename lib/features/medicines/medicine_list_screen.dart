@@ -200,10 +200,14 @@ class _MedicineListScreenState extends State<MedicineListScreen> {
   @override
   void initState() {
     super.initState();
-    if (widget.userId != null) {
+    // Reset the ViewModel when the screen is first created
+    WidgetsBinding.instance.addPostFrameCallback((_) {
       final viewModel = context.read<MedicineViewModel>();
-      viewModel.initialize(widget.userId, isAnonymous: widget.isAnonymous);
-    }
+      viewModel.reset();
+      if (widget.userId != null) {
+        viewModel.initialize(widget.userId, isAnonymous: widget.isAnonymous);
+      }
+    });
   }
 
   @override

@@ -180,4 +180,15 @@ class MedicineViewModel extends ChangeNotifier {
     _error = message;
     notifyListeners();
   }
+
+
+  void reset() {
+    _isLoading = false;
+    _error = null;
+    _searchQuery = null;
+    _timeRangeStart = null;
+    _timeRangeEnd = null;
+    _medicines = []; // Clear the medicines list
+    notifyListeners();
+  }
 }
