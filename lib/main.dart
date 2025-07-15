@@ -8,6 +8,7 @@ import 'package:med_track/features/authentication/auth_screen.dart';
 import 'package:med_track/features/authentication/auth_viewmodel.dart';
 import 'package:med_track/features/companies/company_viewmodel.dart';
 import 'package:med_track/features/medicines/medicine_viewmodel.dart';
+import 'package:med_track/features/medicines/out_of_stock/out_of_stock_medicine_viewmodel.dart';
 import 'package:med_track/features/representatives/representative_viewmodel.dart';
 import 'package:med_track/features/home_screen.dart';
 import 'package:med_track/features/onboarding_screen.dart';
@@ -132,6 +133,7 @@ class _MyAppState extends State<MyApp> {
         ChangeNotifierProvider<CompanyViewModel>(create: (_) => CompanyViewModel()),
         ChangeNotifierProvider<RepresentativeViewModel>(create: (_) => RepresentativeViewModel()),
         ChangeNotifierProvider<MedicineViewModel>(create: (_) => MedicineViewModel()),
+        ChangeNotifierProvider<OutOfStockMedicineViewModel>(create: (_) => OutOfStockMedicineViewModel()),
       ],
       child: MaterialApp(
         debugShowCheckedModeBanner: false,

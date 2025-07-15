@@ -272,7 +272,7 @@ class FirebaseService {
   // Get all in-stock medicines (isFinished == false)
   Stream<QuerySnapshot> getInStockMedicines(String userId, {bool isAnonymous = false}) {
     return _getUserCollection(userId, 'medicines', isAnonymous)
-        .where('isFinished', isEqualTo: false)
+        .where('quantityInStock', isEqualTo: 0)
         .orderBy('name')
         .snapshots();
   }
@@ -280,8 +280,7 @@ class FirebaseService {
   // Get all out-of-stock medicines (isFinished == true)
   Stream<QuerySnapshot> getOutOfStockMedicines(String userId, {bool isAnonymous = false}) {
     return _getUserCollection(userId, 'medicines', isAnonymous)
-        .where('isFinished', isEqualTo: true)
-        .orderBy('name')
+        .where('quantityInStock', isEqualTo: 0)
         .snapshots();
   }
 

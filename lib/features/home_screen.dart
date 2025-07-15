@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import '../utils/notification_service.dart';
 import 'authentication/auth_viewmodel.dart';
 import 'companies/company_list_screen.dart';
+import 'medicines/out_of_stock/out_of_stock_medicine_list_screen.dart';
 import 'menu/menu_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -216,7 +217,10 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _getSelectedScreen(int index) {
     switch (index) {
       case 0:
-        return const MenuScreen();
+        return OutOfStockMedicineListScreen(
+          userId: widget.userId,
+          isAnonymous: widget.isAnonymous,
+        );
       case 1:
         return MedicineListScreen(
           userId: widget.userId,
