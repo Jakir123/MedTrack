@@ -200,11 +200,11 @@ class FirebaseService {
         });
       
       // Set initial quantity and restock date if in stock
-      if (medicineData['isFinished'] != true) {
+      if (quantity>0) {
         newMedicine['lastRestocked'] = now;
-        newMedicine['quantity'] = quantity;
+        newMedicine['quantityInStock'] = quantity;
       } else {
-        newMedicine['quantity'] = 0; // Out of stock
+        newMedicine['quantityInStock'] = 0; // Out of stock
       }
       
       return await col.add(newMedicine);
@@ -215,7 +215,6 @@ class FirebaseService {
   Future<void> toggleMedicineStockStatus({
     required String userId,
     required String medicineId,
-    required bool isFinished,
     required int quantity,
   }) async {
     if (quantity < 0) {
@@ -224,12 +223,11 @@ class FirebaseService {
     
     final now = FieldValue.serverTimestamp();
     final updateData = <String, dynamic>{
-      'isFinished': isFinished,
       'updatedAt': now,
-      'quantity': isFinished ? 0 : quantity,
+      'quantityInStock': quantity,
     };
     
-    if (isFinished) {
+    if (quantity == 0) {
       // Marking as out of stock - update stockedOutAt
       updateData['stockedOutAt'] = now;
     } else {

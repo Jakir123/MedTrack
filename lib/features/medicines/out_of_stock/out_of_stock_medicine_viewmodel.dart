@@ -2,13 +2,96 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:med_track/features/medicines/medicine_model.dart';
 import 'package:med_track/utils/firebase_service.dart';
+import 'package:speech_to_text/speech_to_text.dart' as stt;
 
 import '../medicine_list_screen.dart';
 
 class OutOfStockMedicineViewModel extends ChangeNotifier {
+  final stt.SpeechToText _speech = stt.SpeechToText();
+  bool _isListening = false;
+  String _lastWords = '';
+
+  bool get isListening => _isListening;
+  String get lastWords => _lastWords;
+
   final FirebaseService _firebaseService = FirebaseService();
   bool _isLoading = false;
   String? _error;
+
+  Future<void> toggleListening() async {
+    if (_isListening && _speech.isListening) {
+      await _speech.stop();
+      _isListening = false;
+      notifyListeners();
+    } else {
+      final isAvailable = await _speech.initialize();
+      if (isAvailable) {
+        await _speech.listen(
+          onResult: (result) {
+            _lastWords = result.recognizedWords;
+            print("Listening: $_lastWords");
+            notifyListeners();
+          },
+          listenFor: const Duration(seconds: 5),
+          pauseFor: const Duration(seconds: 1),
+          partialResults: true,
+          localeId: 'en_US',
+        );
+        _isListening = true;
+        notifyListeners();
+      }
+    }
+  }
+
+  void stopListening() {
+    _speech.stop();
+    _isListening = false;
+    notifyListeners();
+  }
+
+  Future<void> confirmVoiceInput(String? userId,String medicineName) async {
+    try {
+      if (userId == null) {
+        throw Exception('User ID is required');
+      }
+      
+      final snapshot = await _firebaseService.getAllMedicines(userId).first;
+      final allMedicines = snapshot.docs.map((doc) => 
+        Medicine.fromMap(doc.data() as Map<String, dynamic>, doc.id)
+      ).toList();
+      
+      Medicine? medicine;
+      try {
+        medicine = allMedicines.firstWhere(
+          (m) => m.name.toLowerCase() == medicineName.toLowerCase(),
+        );
+      } catch (e) {
+        medicine = null;
+      }
+
+      if (medicine != null) {
+        await updateMedicineQuantity(userId, medicine.id, 0);
+      } else {
+        _setError('Medicine not found: $medicineName');
+      }
+    } catch (e) {
+      _setError('Failed to process voice input: $e');
+    }
+  }
+
+  Future<void> updateMedicineQuantity(String? userId,String medicineId, int quantity) async {
+    try {
+      await _firebaseService.toggleMedicineStockStatus(
+        userId: userId!,
+        medicineId: medicineId,
+        quantity: quantity,
+      );
+      notifyListeners();
+    } catch (e) {
+      _setError(e.toString());
+    }
+  }
+
   List<Medicine> _outOfStockMedicines = [];
   String? _searchQuery;
   DateTime? _timeRangeStart;
