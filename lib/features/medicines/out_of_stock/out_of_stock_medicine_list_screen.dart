@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:med_track/features/medicines/add_edit_medicine_sheet.dart';
 import 'package:med_track/features/medicines/medicine_model.dart';
 import 'package:med_track/features/medicines/medicine_viewmodel.dart';
+import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'package:med_track/widgets/search_bar.dart' as custom;
 import 'package:provider/provider.dart';
 
+import '../../../utils/toast_widget.dart';
 import '../medicine_list_screen.dart';
 import 'out_of_stock_medicine_viewmodel.dart';
 
@@ -26,6 +29,9 @@ class OutOfStockMedicineListScreen extends StatefulWidget {
 class _OutOfStockMedicineListScreenState extends State<OutOfStockMedicineListScreen> {
   final Map<String, int> _originalQuantities = {};
   final TextEditingController _manualSearchController = TextEditingController();
+  final stt.SpeechToText _speech = stt.SpeechToText();
+  bool _isListening = false;
+  String _lastWords = '';
 
   void _hideKeyboard(){
     // Hide keyboard and clear focus
@@ -121,6 +127,7 @@ class _OutOfStockMedicineListScreenState extends State<OutOfStockMedicineListScr
 
   @override
   void dispose() {
+    _speech.stop();
     _searchController.dispose();
     _manualSearchController.dispose();
     super.dispose();
@@ -226,9 +233,93 @@ class _OutOfStockMedicineListScreenState extends State<OutOfStockMedicineListScr
     );
   }
 
+  // Modified to accept an optional setState callback for updating the bottom sheet UI
+  Future<void> _toggleListening({bool? shouldStop,Function(void Function())? bottomSheetSetState}) async {
+    if (_isListening || shouldStop == true) {
+      await _speech.stop();
+      final updateState = bottomSheetSetState ?? setState;
+      updateState(() {
+        _isListening = false;
+        if (_lastWords.isNotEmpty) {
+          _manualSearchController.text = _lastWords;
+          _lastWords = '';
+        }
+      });
+    } else {
+      // Check and request microphone permission
+      final status = await Permission.microphone.request();
+      
+      if (status.isDenied) {
+        if (mounted) {
+          CustomToast.showErrorToast('Microphone permission is required for speech recognition');
+        }
+        return;
+      }
+      
+      if (status.isPermanentlyDenied) {
+        if (mounted) {
+          showDialog(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: const Text('Microphone Permission Required'),
+              content: const Text(
+                'Speech recognition requires microphone permission. Please enable it in the app settings.',
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Cancel'),
+                ),
+                TextButton(
+                  onPressed: () {
+                    openAppSettings();
+                    Navigator.pop(context);
+                  },
+                  child: const Text('Open Settings'),
+                ),
+              ],
+            ),
+          );
+        }
+        return;
+      }
+
+      final isAvailable = await _speech.initialize();
+      if (isAvailable) {
+        final updateState = bottomSheetSetState ?? setState;
+        updateState(() => _isListening = true);
+        _speech.listen(
+          onResult: (result) {
+            final updateState = bottomSheetSetState ?? setState;
+            updateState(() {
+              _lastWords = result.recognizedWords;
+            });
+          },
+          listenFor: const Duration(seconds: 30),
+          pauseFor: const Duration(seconds: 5),
+          partialResults: true,
+          localeId: 'en_US',
+        );
+      } else {
+        final updateState = bottomSheetSetState ?? setState;
+        updateState(() => _isListening = false);
+        if (mounted) {
+          CustomToast.showErrorToast('The microphone is not available');
+        }
+      }
+    }
+  }
+
+
   void _showManualAddSheet() {
     List<Medicine> _medicineSuggestions = [];
     _manualSearchController.clear();
+    _speech.stop();
+    _isListening = false;
+    _lastWords = '';
+    
+    // Store the setState callback from the bottom sheet
+    Function(void Function())? bottomSheetSetState;
 
     showModalBottomSheet(
       context: context,
@@ -242,7 +333,9 @@ class _OutOfStockMedicineListScreenState extends State<OutOfStockMedicineListScr
         maxHeight: MediaQuery.of(context).size.height-40,
       ),
       builder: (context) => StatefulBuilder(
-        builder: (context, setState) {
+        builder: (context, setModalState) {
+          // Store the setState callback to update the bottom sheet
+          bottomSheetSetState = setModalState;
           // Handle keyboard dismiss
           return GestureDetector(
             onTap: () => FocusScope.of(context).unfocus(),
@@ -286,16 +379,22 @@ class _OutOfStockMedicineListScreenState extends State<OutOfStockMedicineListScr
                         hintText: 'Search medicine...',
                         prefixIcon: const Icon(Icons.search),
                         suffixIcon: _manualSearchController.text.isNotEmpty
-                            ? IconButton(
-                                icon: const Icon(Icons.clear),
-                                onPressed: () {
-                                  _manualSearchController.clear();
-                                  setState(() {
-                                    _medicineSuggestions = [];
-                                  });
-                                },
-                              )
-                            : null,
+                          ? IconButton(
+                              icon: const Icon(Icons.clear),
+                              onPressed: () {
+                                _manualSearchController.clear();
+                                setState(() {
+                                  _medicineSuggestions = [];
+                                });
+                              },
+                            )
+                          : IconButton(
+                              icon: Icon(
+                                _isListening ? Icons.mic_off : Icons.mic,
+                                color: _isListening ? Colors.red : null,
+                              ),
+                              onPressed: () => _toggleListening(bottomSheetSetState: bottomSheetSetState),
+                            ),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(8),
                         ),
@@ -308,17 +407,21 @@ class _OutOfStockMedicineListScreenState extends State<OutOfStockMedicineListScr
                           });
                           return;
                         }
-
-                        // Get suggestions from all medicines
-                        final viewModel = context.read<MedicineViewModel>();
+                        final medicineVM = context.read<MedicineViewModel>();
                         setState(() {
-                          _medicineSuggestions = viewModel.medicines
-                              .where((medicine) => medicine.name
+                          _medicineSuggestions = medicineVM.medicines
+                              .where((medicine) => medicine
+                                  .name
                                   .toLowerCase()
                                   .contains(value.toLowerCase()))
-                          .where((medicine) => medicine.quantityInStock != 0)
+                              .where((medicine) => medicine.quantityInStock != 0)
                               .toList();
                         });
+                      },
+                      onTap: () {
+                        if (_isListening) {
+                          _toggleListening(bottomSheetSetState: bottomSheetSetState);
+                        }
                       },
                     ),
                   ),
@@ -356,9 +459,28 @@ class _OutOfStockMedicineListScreenState extends State<OutOfStockMedicineListScr
                         },
                       ),
                     ),
-                  if (_medicineSuggestions.isEmpty)
+                  if (_isListening)
                     Padding(
                       padding: const EdgeInsets.all(20.0),
+                      child: Column(
+                        children: [
+                          const Text('Listening...', style: TextStyle(fontStyle: FontStyle.italic)),
+                          const SizedBox(height: 10),
+                          if (_lastWords.isNotEmpty)
+                            Text('Recognized: $_lastWords'),
+                          const SizedBox(height: 20),
+                          ElevatedButton.icon(
+                            onPressed: (){_toggleListening(shouldStop: true,bottomSheetSetState: bottomSheetSetState);},
+                            icon: const Icon(Icons.mic_off),
+                            label: const Text('Stop Listening'),
+                            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                          ),
+                        ],
+                      ),
+                    )
+                  else if (_medicineSuggestions.isEmpty)
+                    const Padding(
+                      padding: EdgeInsets.all(20.0),
                       child: Text('Search the medicine name and click on the item to add it as out of stock'),
                     ),
                 ],
