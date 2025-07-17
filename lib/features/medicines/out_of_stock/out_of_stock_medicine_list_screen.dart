@@ -1,14 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:permission_handler/permission_handler.dart';
 import 'package:med_track/features/medicines/add_edit_medicine_sheet.dart';
 import 'package:med_track/features/medicines/medicine_model.dart';
-import 'package:med_track/features/medicines/medicine_viewmodel.dart';
-import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'package:med_track/widgets/search_bar.dart' as custom;
 import 'package:provider/provider.dart';
 
-import '../../../utils/toast_widget.dart';
 import '../medicine_list_screen.dart';
+import 'add_out_of_stock_medicine_sheet.dart';
 import 'out_of_stock_medicine_viewmodel.dart';
 
 
@@ -28,10 +25,6 @@ class OutOfStockMedicineListScreen extends StatefulWidget {
 
 class _OutOfStockMedicineListScreenState extends State<OutOfStockMedicineListScreen> {
   final Map<String, int> _originalQuantities = {};
-  final TextEditingController _manualSearchController = TextEditingController();
-  final stt.SpeechToText _speech = stt.SpeechToText();
-  bool _isListening = false;
-  String _lastWords = '';
 
   void _hideKeyboard(){
     // Hide keyboard and clear focus
@@ -127,99 +120,10 @@ class _OutOfStockMedicineListScreenState extends State<OutOfStockMedicineListScr
 
   @override
   void dispose() {
-    _speech.stop();
     _searchController.dispose();
-    _manualSearchController.dispose();
     super.dispose();
   }
 
-  void _listenMedicineName() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      builder: (context) => Consumer<OutOfStockMedicineViewModel>(
-        builder: (context, viewModel, _) => StatefulBuilder(
-          builder: (context, setState) => Padding(
-            padding: EdgeInsets.only(
-              bottom: MediaQuery.of(context).viewInsets.bottom,
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const SizedBox(height: 16),
-                Center(
-                  child: AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 300),
-                    child: viewModel.isListening
-                        ? const Icon(
-                            Icons.mic,
-                            size: 64,
-                            color: Colors.red,
-                          )
-                        : const Icon(
-                            Icons.mic_none,
-                            size: 64,
-                            color: Colors.grey,
-                          ),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                if (viewModel.lastWords.isNotEmpty)
-                  Text(
-                    viewModel.lastWords,
-                    style: const TextStyle(fontSize: 18),
-                    textAlign: TextAlign.center,
-                  ),
-                const SizedBox(height: 24),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    ElevatedButton.icon(
-                      onPressed: viewModel.isListening ? null : () {
-                        viewModel.toggleListening();
-                      },
-                      icon: const Icon(Icons.mic),
-                      label: const Text('Start Listening'),
-                    ),
-                    if (viewModel.lastWords.isNotEmpty)
-                      ElevatedButton.icon(
-                        onPressed: () async {
-                          final confirmed = await showDialog<bool>(
-                            context: context,
-                            builder: (context) => AlertDialog(
-                              title: const Text('Confirm Medicine'),
-                              content: Text('Did you say "${viewModel.lastWords}"?'),
-                              actions: [
-                                TextButton(
-                                  onPressed: () => Navigator.pop(context, false),
-                                  child: const Text('No'),
-                                ),
-                                TextButton(
-                                  onPressed: () => Navigator.pop(context, true),
-                                  child: const Text('Yes'),
-                                ),
-                              ],
-                            ),
-                          );
-                          
-                          if (confirmed ?? false) {
-                            viewModel.confirmVoiceInput(widget.userId, viewModel.lastWords);
-                            Navigator.pop(context);
-                          }
-                        },
-                        icon: const Icon(Icons.check),
-                        label: const Text('Confirm'),
-                      ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
 
   void _showAddEditMedicine({Medicine? medicine}) {
     showModalBottomSheet(
@@ -233,271 +137,17 @@ class _OutOfStockMedicineListScreenState extends State<OutOfStockMedicineListScr
     );
   }
 
-  // Modified to accept an optional setState callback for updating the bottom sheet UI
-  Future<void> _toggleListening({bool? shouldStop,Function(void Function())? bottomSheetSetState}) async {
-    if (_isListening || shouldStop == true) {
-      await _speech.stop();
-      final updateState = bottomSheetSetState ?? setState;
-      updateState(() {
-        _isListening = false;
-        if (_lastWords.isNotEmpty) {
-          _manualSearchController.text = _lastWords;
-          _lastWords = '';
-        }
-      });
-    } else {
-      // Check and request microphone permission
-      final status = await Permission.microphone.request();
-      
-      if (status.isDenied) {
-        if (mounted) {
-          CustomToast.showErrorToast('Microphone permission is required for speech recognition');
-        }
-        return;
-      }
-      
-      if (status.isPermanentlyDenied) {
-        if (mounted) {
-          showDialog(
-            context: context,
-            builder: (context) => AlertDialog(
-              title: const Text('Microphone Permission Required'),
-              content: const Text(
-                'Speech recognition requires microphone permission. Please enable it in the app settings.',
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('Cancel'),
-                ),
-                TextButton(
-                  onPressed: () {
-                    openAppSettings();
-                    Navigator.pop(context);
-                  },
-                  child: const Text('Open Settings'),
-                ),
-              ],
-            ),
-          );
-        }
-        return;
-      }
-
-      final isAvailable = await _speech.initialize();
-      if (isAvailable) {
-        final updateState = bottomSheetSetState ?? setState;
-        updateState(() => _isListening = true);
-        _speech.listen(
-          onResult: (result) {
-            final updateState = bottomSheetSetState ?? setState;
-            updateState(() {
-              _lastWords = result.recognizedWords;
-            });
-          },
-          listenFor: const Duration(seconds: 30),
-          pauseFor: const Duration(seconds: 5),
-          partialResults: true,
-          localeId: 'en_US',
-        );
-      } else {
-        final updateState = bottomSheetSetState ?? setState;
-        updateState(() => _isListening = false);
-        if (mounted) {
-          CustomToast.showErrorToast('The microphone is not available');
-        }
-      }
-    }
-  }
 
 
   void _showManualAddSheet() {
-    List<Medicine> _medicineSuggestions = [];
-    _manualSearchController.clear();
-    _speech.stop();
-    _isListening = false;
-    _lastWords = '';
-    
-    // Store the setState callback from the bottom sheet
-    Function(void Function())? bottomSheetSetState;
-
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      isDismissible: true,
-      enableDrag: true,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      constraints: BoxConstraints(
-        maxHeight: MediaQuery.of(context).size.height-40,
-      ),
-      builder: (context) => StatefulBuilder(
-        builder: (context, setModalState) {
-          // Store the setState callback to update the bottom sheet
-          bottomSheetSetState = setModalState;
-          // Handle keyboard dismiss
-          return GestureDetector(
-            onTap: () => FocusScope.of(context).unfocus(),
-            child: Padding(
-              padding: EdgeInsets.only(
-                bottom: MediaQuery.of(context).viewInsets.bottom,
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.max,
-                children: [
-                  ClipRRect(
-                    borderRadius: const BorderRadius.only(
-                      topLeft: Radius.circular(20),
-                      topRight: Radius.circular(20),
-                    ),
-                    child: Container(
-                      color: Theme.of(context).primaryColor,
-                      child: Padding(
-                        padding: const EdgeInsets.only(left: 16, right: 16, top: 8, bottom: 8),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              'Add Out of Stock Medicine',
-                              style: Theme.of(context).textTheme.titleLarge?.copyWith(color: Colors.white),
-                            ),
-                            IconButton(
-                              icon: const Icon(Icons.close, color: Colors.white),
-                              onPressed: () => Navigator.pop(context),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.only(left: 16.0, right: 16.0, top: 4.0, bottom: 8.0),
-                    child: TextField(
-                      controller: _manualSearchController,
-                      decoration: InputDecoration(
-                        hintText: 'Search medicine...',
-                        prefixIcon: const Icon(Icons.search),
-                        suffixIcon: _manualSearchController.text.isNotEmpty
-                          ? IconButton(
-                              icon: const Icon(Icons.clear),
-                              onPressed: () {
-                                _manualSearchController.clear();
-                                setState(() {
-                                  _medicineSuggestions = [];
-                                });
-                              },
-                            )
-                          : IconButton(
-                              icon: Icon(
-                                _isListening ? Icons.mic_off : Icons.mic,
-                                color: _isListening ? Colors.red : null,
-                              ),
-                              onPressed: () => _toggleListening(bottomSheetSetState: bottomSheetSetState),
-                            ),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        contentPadding: const EdgeInsets.symmetric(vertical: 12),
-                      ),
-                      onChanged: (value) {
-                        if (value.isEmpty) {
-                          setState(() {
-                            _medicineSuggestions = [];
-                          });
-                          return;
-                        }
-                        final medicineVM = context.read<MedicineViewModel>();
-                        setState(() {
-                          _medicineSuggestions = medicineVM.medicines
-                              .where((medicine) => medicine
-                                  .name
-                                  .toLowerCase()
-                                  .contains(value.toLowerCase()))
-                              .where((medicine) => medicine.quantityInStock != 0)
-                              .toList();
-                        });
-                      },
-                      onTap: () {
-                        if (_isListening) {
-                          _toggleListening(bottomSheetSetState: bottomSheetSetState);
-                        }
-                      },
-                    ),
-                  ),
-                  if (_medicineSuggestions.isNotEmpty)
-                    Expanded(
-                      child: ListView.builder(
-                        itemCount: _medicineSuggestions.length,
-                        itemBuilder: (context, index) {
-                          final suggestion = _medicineSuggestions[index];
-                          return Container(
-                            color: index.isEven ? Colors.grey[100] : Colors.grey[200],
-                            child: ListTile(
-                              title: Text(
-                                '${suggestion.name} - ${suggestion.quantityInStock}',
-                                style: const TextStyle(fontWeight: FontWeight.bold),
-                              ),
-                              subtitle: Text('${suggestion.companyName}'),
-                              onTap: () {
-                                _manualSearchController.text = suggestion.name;
-                                final viewModel = context.read<MedicineViewModel>();
-                                Medicine? medicine;
-                                try {
-                                  medicine = viewModel.medicines
-                                      .firstWhere((m) => m.name == suggestion.name);
-                                } catch (e) {
-                                  medicine = null;
-                                }
-                                if (medicine != null) {
-                                  _updateMedicineQuantity(medicine);
-                                  Navigator.pop(context);
-                                }
-                              },
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                  if (_isListening)
-                    Padding(
-                      padding: const EdgeInsets.all(20.0),
-                      child: Column(
-                        children: [
-                          const Text('Listening...', style: TextStyle(fontStyle: FontStyle.italic)),
-                          const SizedBox(height: 10),
-                          if (_lastWords.isNotEmpty)
-                            Text('Recognized: $_lastWords'),
-                          const SizedBox(height: 20),
-                          ElevatedButton.icon(
-                            onPressed: (){_toggleListening(shouldStop: true,bottomSheetSetState: bottomSheetSetState);},
-                            icon: const Icon(Icons.mic_off),
-                            label: const Text('Stop Listening'),
-                            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-                          ),
-                        ],
-                      ),
-                    )
-                  else if (_medicineSuggestions.isEmpty)
-                    const Padding(
-                      padding: EdgeInsets.all(20.0),
-                      child: Text('Search the medicine name and click on the item to add it as out of stock'),
-                    ),
-                ],
-              ),
-            ),
-          );
-        },
+      builder: (context) => AddOutOfStockMedicineSheet(
+        userId: widget.userId,
       ),
     );
-  }
 
-  void _updateMedicineQuantity(Medicine medicine) {
-    context.read<OutOfStockMedicineViewModel>().updateMedicineQuantity(
-      widget.userId,
-      medicine.id,
-      0,
-    );
   }
 
   @override
@@ -733,30 +383,7 @@ class _OutOfStockMedicineListScreenState extends State<OutOfStockMedicineListScr
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
-          showModalBottomSheet(
-            context: context,
-            builder: (context) => Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                ListTile(
-                  leading: const Icon(Icons.keyboard),
-                  title: const Text('Add Manually'),
-                  onTap: () {
-                    Navigator.pop(context);
-                    _showManualAddSheet();
-                  },
-                ),
-                ListTile(
-                  leading: const Icon(Icons.mic),
-                  title: const Text('Voice Input'),
-                  onTap: () {
-                    Navigator.pop(context);
-                    _listenMedicineName();
-                  },
-                ),
-              ],
-            ),
-          );
+          _showManualAddSheet();
         },
         child: const Icon(Icons.add),
       ),
