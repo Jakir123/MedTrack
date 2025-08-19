@@ -24,6 +24,7 @@ class AddOutOfStockMedicineSheet extends StatefulWidget {
 class _AddOutOfStockMedicineSheetState extends State<AddOutOfStockMedicineSheet> {
   late final TextEditingController _searchController;
   final List<Medicine> _medicineSuggestions = [];
+  final List<Medicine> _allMedicines = [];
   final stt.SpeechToText _speech = stt.SpeechToText();
   bool _isListening = false;
   String _lastWords = '';
@@ -32,6 +33,7 @@ class _AddOutOfStockMedicineSheetState extends State<AddOutOfStockMedicineSheet>
   void initState() {
     super.initState();
     _searchController = TextEditingController();
+    _loadMedicineList();
     _initSpeech();
   }
 
@@ -39,6 +41,12 @@ class _AddOutOfStockMedicineSheetState extends State<AddOutOfStockMedicineSheet>
   void dispose() {
     _searchController.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadMedicineList() async {
+    final medicineVM = context.read<MedicineViewModel>();
+    final medicines = await medicineVM.getAllMedicines(widget.userId);
+    _allMedicines.addAll(medicines);
   }
 
   Future<void> _initSpeech() async {
@@ -166,11 +174,10 @@ class _AddOutOfStockMedicineSheetState extends State<AddOutOfStockMedicineSheet>
       return;
     }
 
-    final medicineVM = context.read<MedicineViewModel>();
     setState(() {
       _medicineSuggestions.clear();
       _medicineSuggestions.addAll(
-        medicineVM.medicines
+        _allMedicines
             .where((medicine) =>
                 medicine.name.toLowerCase().contains(query.toLowerCase()))
             .toList(),

@@ -62,6 +62,29 @@ class MedicineViewModel extends ChangeNotifier {
     });
   }
 
+  Future<List<Medicine>> getAllMedicines(String? userId, {bool isAnonymous = false}) async {
+    if (userId == null) return [];
+    final completer = Completer<List<Medicine>>();
+
+    final subscription = _firebaseService
+        .getAllMedicines(userId, isAnonymous: isAnonymous)
+        .listen((snapshot) {
+      final medicines = snapshot.docs
+          .map((doc) => Medicine.fromMap(doc.data() as Map<String, dynamic>, doc.id))
+          .toList();
+      if (!completer.isCompleted) {
+        completer.complete(medicines);
+      }
+    }, onError: (error) {
+      _setError('Failed to load medicines: $error');
+      if (!completer.isCompleted) {
+        completer.completeError(error);
+      }
+    });
+    // Return the future that will complete when the first batch of data is received
+    return completer.future.whenComplete(() => subscription.cancel());
+  }
+
   // Set search query
   void setSearchQuery(String? query) {
     _searchQuery = query;
