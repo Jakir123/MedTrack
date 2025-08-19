@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:med_track/features/medicines/medicine_viewmodel.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -92,36 +94,70 @@ class _AddOutOfStockMedicineSheetState extends State<AddOutOfStockMedicineSheet>
 
       bool available = await _speech.initialize(
         onStatus: (status) {
-          if (status == 'done') {
+          debugPrint('Speech status: $status');
+          if (status == 'done' || status == 'notListening') {
             _stopListening();
           }
         },
         onError: (error) {
+          debugPrint('Speech error: $error');
           _stopListening();
         },
       );
 
       if (available) {
         setState(() => _isListening = true);
-        _speech.listen(
+        DateTime lastSpokeTime = DateTime.now();
+        await _speech.listen(
+          listenFor: const Duration(seconds: 30),
+          pauseFor: const Duration(seconds: 10),
+          partialResults: true,
+          localeId: 'en_US',
           onResult: (result) {
+            debugPrint('Speech Result: $result');
             setState(() {
               _lastWords = result.recognizedWords;
               if (result.finalResult) {
                 _searchController.text = _lastWords;
                 _performSearch(_lastWords);
-                _stopListening();
+                _isListening = false;
               }
             });
           },
+          cancelOnError: false,
+          listenMode: stt.ListenMode.dictation,
+          onDevice: false,
+          onSoundLevelChange: (level) {
+            // Optional: You can use this to show visual feedback of sound level
+          },
         );
+
+        // This runs after listening stops (even if nothing was said)
+        // if (_isListening) {
+        //   setState(() => _isListening = false);
+        // }
+
+        // Timer to handle "silence timeout"
+        Timer.periodic(const Duration(milliseconds: 500), (timer) {
+          if (!_isListening) {
+            timer.cancel();
+            return;
+          }
+
+          if (DateTime.now().difference(lastSpokeTime) >
+              const Duration(seconds: 5)) { // same as pauseFor
+            _stopListening();
+            timer.cancel();
+          }
+        });
+
       }
     }
   }
 
   void _stopListening() {
-    _speech.stop();
     setState(() => _isListening = false);
+    _speech.stop();
   }
 
   void _performSearch(String query) {
@@ -258,7 +294,7 @@ class _AddOutOfStockMedicineSheetState extends State<AddOutOfStockMedicineSheet>
             else if (_medicineSuggestions.isEmpty)
               const Padding(
                 padding: EdgeInsets.all(20.0),
-                child: Text("Search the medicine name \nOr speak the medicine name \nand click on the item to add it as out of stock",style: TextStyle(fontWeight: FontWeight.bold,fontSize: 16),textAlign: TextAlign.center,),
+                child: Text("Write the medicine name \nOr speak the medicine name \nand click on the item to add it as out of stock",style: TextStyle(fontWeight: FontWeight.bold,fontSize: 16),textAlign: TextAlign.center,),
               ),
           ],
         ),
