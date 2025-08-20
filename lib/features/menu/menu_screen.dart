@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:provider/provider.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
@@ -322,6 +323,20 @@ class MenuScreen extends StatelessWidget {
                         ),
                       ),
                     );
+                  },
+                ),
+                _buildMenuItem(
+                  context,
+                  icon: Icons.share,
+                  title: 'Share App',
+                  onTap: () async {
+                    final packageInfo = await PackageInfo.fromPlatform();
+                    final String appName = packageInfo.appName;
+                    final String packageName = packageInfo.packageName;
+                    final String shareText = 'Check out $appName - A medicine inventory management app!'
+                        '\n\nDownload now: https://play.google.com/store/apps/details?id=$packageName';
+                    
+                    await Share.share(shareText);
                   },
                 ),
                 _buildMenuItem(
