@@ -82,4 +82,23 @@ class SessionManager{
       await prefs.remove(docIdKey);
     }
   }
+
+
+  static Future<void> setDailyNotificationTime(String notificationTime) async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    prefs.setString('daily_notification_time', notificationTime);
+  }
+  static Future<String> getDailyNotificationTime() async {
+    final SharedPreferences pref = await SharedPreferences.getInstance();
+    return pref.getString('daily_notification_time') ?? "10:0";
+  }
+
+  static Future<void> setLowStockThreshold(String threshold) async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    prefs.setString('low_stock_threshold', threshold);
+  }
+  static Future<String> getLowStockThreshold() async {
+    final SharedPreferences pref = await SharedPreferences.getInstance();
+    return pref.getString('low_stock_threshold') ?? "5";
+  }
 }

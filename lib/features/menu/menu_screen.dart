@@ -7,6 +7,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import '../authentication/auth_viewmodel.dart';
 import '../authentication/change_password_screen.dart';
 import '../onboarding_screen.dart';
+import '../notifications/notification_settings_sheet.dart';
 
 class MenuScreen extends StatelessWidget {
   const MenuScreen({Key? key}) : super(key: key);
@@ -299,14 +300,9 @@ class MenuScreen extends StatelessWidget {
                 _buildMenuItem(
                   context,
                   icon: Icons.edit_notifications,
-                  title: 'Notifications Settings',
+                  title: 'Notification Settings',
                   onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const ChangePasswordScreen(),
-                      ),
-                    );
+                    showNotificationSettingsSheet(context);
                   },
                 ),
                 _buildMenuItem(
