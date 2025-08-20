@@ -25,27 +25,27 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   final List<_OnboardPage> _pages = [
     _OnboardPage(
-      imagePath: 'assets/onboarding/todo_list.svg',
-      title: 'Task Management',
-      desc: 'View all your current to-dos, add new, and track completion.',
+      imagePath: 'assets/onboarding/login.svg',
+      title: 'Company Management',
+      desc: 'Easily register and manage all pharmaceutical companies you work with in one place.',
       backgroundColor: AppColors.primaryBlue,
     ),
     _OnboardPage(
       imagePath: 'assets/onboarding/prioritise_task.svg',
-      title: 'Priorities Your Important Task',
-      desc: 'Assign low, medium, or high priority badges to your tasks.',
+      title: 'Representative Directory',
+      desc: 'Keep track of all company representatives and their contact information for quick access.',
       backgroundColor: AppColors.mintGreen,
     ),
     _OnboardPage(
       imagePath: 'assets/onboarding/reminder.svg',
-      title: 'Get Notify On Time',
-      desc: 'Set deadlines and get reminders for important tasks.',
+      title: 'Medicine Catalog',
+      desc: 'Maintain a comprehensive database of all available medicines with detailed information.',
       backgroundColor: AppColors.teal,
     ),
     _OnboardPage(
       imagePath: 'assets/onboarding/swipe_options.svg',
-      title: 'Swipe Gestures',
-      desc: 'Swipe left to delete or edit, right to complete tasks quickly.',
+      title: 'Stock Management',
+      desc: 'Easily track inventory levels and get notified when stock is running low.',
       backgroundColor: AppColors.softLavender,
     ),
   ];

@@ -231,7 +231,7 @@ class _HomeScreenState extends State<HomeScreen> {
       case 3:
         return const CompanyListScreen();
       case 4:
-        return const CompanyListScreen();
+        return const MenuScreen();
       default:
         return const MenuScreen();
     }

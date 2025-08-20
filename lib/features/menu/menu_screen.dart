@@ -56,11 +56,11 @@ class MenuScreen extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 16),
-                _buildInfoRow(context,'App Name', 'PlanPilot'),
+                _buildInfoRow(context,'App Name', packageInfo.appName),
                 const SizedBox(height: 12),
                 _buildInfoRow(context,'Version', '${packageInfo.version} (${packageInfo.buildNumber})'),
                 const SizedBox(height: 12),
-                _buildInfoRow(context,'For', 'Personal Task Management'),
+                _buildInfoRow(context,'For', 'Medicine Tracking'),
                 const SizedBox(height: 12),
                 Text(
                   'How to Use',
@@ -69,11 +69,12 @@ class MenuScreen extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 8),
-                Text(
-                  '1. Add tasks with due dates and priorities\n'
-                  '2. Swipe left to edit or delete tasks\n'
-                  '3. Swipe right to mark as complete\n'
-                  '4. Set reminders for important tasks',
+                Text( '1. Add Companies: Register pharmaceutical companies you work with\n'
+                      '2. Add Representatives: Input contact details of company representatives\n'
+                      '3. Add Medicines: Create entries for all available medicines\n'
+                      '4. Track Stock: Mark medicines as out of stock with a single tap\n'
+                      '5. Monitor Inventory: Keep track of both in-stock and out-of-stock items\n',
+
                   style: theme.textTheme.bodyMedium?.copyWith(
                     color: isDark ? Colors.white70 : Colors.black87,
                     height: 1.6,
@@ -199,6 +200,7 @@ class MenuScreen extends StatelessWidget {
     );
   }
 
+
   @override
   Widget build(BuildContext context) {
     final authViewModel = Provider.of<AuthViewModel>(context);
@@ -263,7 +265,7 @@ class MenuScreen extends StatelessWidget {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        'PlanPilot User',
+                        'MedTrack User',
                         style: TextStyle(
                           color: Theme.of(context).hintColor,
                           fontSize: 14,
@@ -285,6 +287,19 @@ class MenuScreen extends StatelessWidget {
                   context,
                   icon: Icons.lock_outline,
                   title: 'Change Password',
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const ChangePasswordScreen(),
+                      ),
+                    );
+                  },
+                ),
+                _buildMenuItem(
+                  context,
+                  icon: Icons.edit_notifications,
+                  title: 'Notifications Settings',
                   onTap: () {
                     Navigator.push(
                       context,
