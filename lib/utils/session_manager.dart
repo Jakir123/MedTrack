@@ -101,4 +101,14 @@ class SessionManager{
     final SharedPreferences pref = await SharedPreferences.getInstance();
     return pref.getString('low_stock_threshold') ?? "5";
   }
+
+  static Future<void> setNotificationsEnabled(bool enabled) async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('notifications_enabled', enabled);
+  }
+
+  static Future<bool> areNotificationsEnabled() async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    return prefs.getBool('notifications_enabled') ?? true; // Default to enabled
+  }
 }

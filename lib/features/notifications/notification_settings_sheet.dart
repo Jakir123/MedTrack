@@ -16,6 +16,7 @@ class NotificationSettingsSheet extends StatefulWidget {
 class _NotificationSettingsSheetState extends State<NotificationSettingsSheet> {
   TimeOfDay _notificationTime = TimeOfDay.now();
   final TextEditingController _thresholdController = TextEditingController();
+  bool _notificationsEnabled = true;
   final FlutterLocalNotificationsPlugin _flutterLocalNotificationsPlugin =
       FlutterLocalNotificationsPlugin();
 
@@ -30,24 +31,34 @@ class _NotificationSettingsSheetState extends State<NotificationSettingsSheet> {
     final hour = notificationTime.split(':').first;
     final minute = notificationTime.split(':').last;
     final threshold = await SessionManager.getLowStockThreshold();
+    final isEnabled = await SessionManager.areNotificationsEnabled();
 
     setState(() {
       _notificationTime = TimeOfDay(hour: int.parse(hour), minute: int.parse(minute));
       _thresholdController.text = threshold.toString();
+      _notificationsEnabled = isEnabled;
     });
   }
 
   Future<void> _saveSettings() async {
     await SessionManager.setDailyNotificationTime("${_notificationTime.hour}:${_notificationTime.minute}");
     await SessionManager.setLowStockThreshold(_thresholdController.text);
+    await SessionManager.setNotificationsEnabled(_notificationsEnabled);
 
-    // Schedule the notification with new time
-    await _scheduleDailyNotification();
+    if (_notificationsEnabled) {
+      // Schedule the notification with new time if notifications are enabled
+      await _scheduleDailyNotification();
+    } else {
+      // Cancel all notifications if disabled
+      await _flutterLocalNotificationsPlugin.cancelAll();
+    }
     
     if (mounted) {
       Navigator.pop(context);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Notification settings saved')),
+        SnackBar(content: Text(_notificationsEnabled 
+          ? 'Notification settings saved' 
+          : 'Notifications disabled')),
       );
     }
   }
@@ -109,6 +120,8 @@ class _NotificationSettingsSheetState extends State<NotificationSettingsSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    
     return SingleChildScrollView(
       padding: EdgeInsets.only(
         left: 16,
@@ -125,50 +138,143 @@ class _NotificationSettingsSheetState extends State<NotificationSettingsSheet> {
             style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             textAlign: TextAlign.center,
           ),
-          const SizedBox(height: 24),
-          ListTile(
-            title: const Text('Daily Notification Time', style: TextStyle(fontWeight: FontWeight.bold)),
-            subtitle: Text(
-              _notificationTime.format(context),
-              style: const TextStyle(fontSize: 16),
+          const SizedBox(height: 16),
+          // Notification Toggle
+          Container(
+            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+            decoration: BoxDecoration(
+              color: theme.cardColor,
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
             ),
-            trailing: IconButton(
-              icon: const Icon(Icons.access_time),
-              onPressed: () => _selectTime(context),
-            ),
-          ),
-          const Divider(height: 1, thickness: 1),
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
             child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 const Text(
-                  'Low Stock Threshold',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                  'Enable Notifications',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
                 ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: TextField(
-                    controller: _thresholdController,
-                    textAlign: TextAlign.center,
-                    decoration: const InputDecoration(
-                      contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                      border: OutlineInputBorder(),
-                      isDense: true,
-                    ),
-                    keyboardType: TextInputType.number,
-                  ),
+                Switch(
+                  value: _notificationsEnabled,
+                  onChanged: (bool value) {
+                    setState(() {
+                      _notificationsEnabled = value;
+                    });
+                  },
+                  activeColor: theme.primaryColor,
                 ),
               ],
             ),
           ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-            child: Text(
-              'You will be notified when any medicine stock falls below this number',
-              style: TextStyle(
-                fontSize: 12,
-                color: Theme.of(context).hintColor,
+          const SizedBox(height: 16),
+          // Daily Notification Time
+          Opacity(
+            opacity: _notificationsEnabled ? 1.0 : 0.6,
+            child: AbsorbPointer(
+              absorbing: !_notificationsEnabled,
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+                decoration: BoxDecoration(
+                  color: theme.cardColor,
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Daily Notification Time',
+                      style: TextStyle(fontWeight: FontWeight.w500, fontSize: 14),
+                    ),
+                    const SizedBox(height: 4),
+                    InkWell(
+                      onTap: _notificationsEnabled ? () => _selectTime(context) : null,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            _notificationTime.format(context),
+                            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                          ),
+                          Icon(Icons.access_time, color: _notificationsEnabled ? theme.primaryColor : Colors.grey),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          // Low Stock Threshold
+          Opacity(
+            opacity: _notificationsEnabled ? 1.0 : 0.6,
+            child: AbsorbPointer(
+              absorbing: !_notificationsEnabled,
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+                decoration: BoxDecoration(
+                  color: theme.cardColor,
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Low Stock Threshold',
+                      style: TextStyle(fontWeight: FontWeight.w500, fontSize: 14),
+                    ),
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: _thresholdController,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                      decoration: InputDecoration(
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: BorderSide(color: Colors.grey.shade300),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: BorderSide(color: Colors.grey.shade300),
+                        ),
+                        filled: true,
+                        fillColor: _notificationsEnabled ? null : Colors.grey.shade100,
+                        isDense: true,
+                      ),
+                      keyboardType: TextInputType.number,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Get notified when stock falls below this number',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey[600],
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
