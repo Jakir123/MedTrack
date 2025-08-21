@@ -41,7 +41,7 @@ final ThemeData lightTheme = ThemeData(
     unselectedIconTheme: IconThemeData(color: kLightTextSecondary),
     selectedLabelStyle: const TextStyle(fontWeight: FontWeight.w600),
     showUnselectedLabels: false,
-    type: BottomNavigationBarType.shifting,
+    type: BottomNavigationBarType.fixed,
     elevation: 8,
   ),
   cardTheme: CardTheme(
@@ -129,7 +129,7 @@ final ThemeData darkTheme = ThemeData(
     unselectedIconTheme: IconThemeData(color: kDarkTextSecondary),
     selectedLabelStyle: const TextStyle(fontWeight: FontWeight.w600),
     showUnselectedLabels: false,
-    type: BottomNavigationBarType.shifting,
+    type: BottomNavigationBarType.fixed,
     elevation: 8,
   ),
   cardTheme: CardTheme(
