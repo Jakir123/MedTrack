@@ -45,28 +45,16 @@ class _AddOutOfStockMedicineSheetState extends State<AddOutOfStockMedicineSheet>
 
   Future<void> _loadMedicineList() async {
     final medicineVM = context.read<MedicineViewModel>();
-    final medicines = await medicineVM.getAllMedicines(widget.userId);
+    final medicines = await medicineVM.getAllInStockMedicines(widget.userId);
+    _allMedicines.clear();
     _allMedicines.addAll(medicines);
+    _performSearch(_searchController.text);
   }
 
   Future<void> _initSpeech() async {
     await _speech.initialize();
   }
 
-  void _updateMedicineQuantity(Medicine medicine) async{
-    if (medicine.quantityInStock == 0) {
-      CustomToast.showErrorToast(
-        'Medicine is already out of stock'
-      );
-      return;
-    }
-    await context.read<OutOfStockMedicineViewModel>().updateMedicineQuantity(
-      widget.userId,
-      medicine.id,
-      0,
-    );
-    Navigator.pop(context);
-  }
 
   Future<void> _toggleListening({bool shouldStop = false}) async {
     if (shouldStop) {
@@ -170,10 +158,12 @@ class _AddOutOfStockMedicineSheetState extends State<AddOutOfStockMedicineSheet>
 
   void _performSearch(String query) {
     if (query.isEmpty) {
-      setState(() => _medicineSuggestions.clear());
+      setState((){
+        _medicineSuggestions.clear();
+        _medicineSuggestions.addAll(_allMedicines);
+      });
       return;
     }
-
     setState(() {
       _medicineSuggestions.clear();
       _medicineSuggestions.addAll(
@@ -183,6 +173,36 @@ class _AddOutOfStockMedicineSheetState extends State<AddOutOfStockMedicineSheet>
             .toList(),
       );
     });
+  }
+
+  void _toggleStockOut(Medicine medicine) async {
+    // First, update the local state to show the switch transition
+    setState(() {
+      // Create a copy with quantityInStock set to 0 to trigger the switch animation
+      final updatedMedicine = medicine.copyWith(quantityInStock: 0);
+      final index = _medicineSuggestions.indexWhere((m) => m.id == medicine.id);
+      if (index != -1) {
+        _medicineSuggestions[index] = updatedMedicine;
+      }
+    });
+
+    // Then perform the actual update
+    final viewModel = context.read<MedicineViewModel>();
+    await viewModel.updateMedicine(
+      medicine.copyWith(quantityInStock: 0),
+      widget.userId,
+      isAnonymous: false,
+    );
+
+    // Finally, remove the item after a short delay to show the transition
+    await Future.delayed(const Duration(milliseconds: 300)); // Adjust timing as needed
+
+    if (mounted) {
+      setState(() {
+        _medicineSuggestions.removeWhere((m) => m.id == medicine.id);
+        _allMedicines.removeWhere((m) => m.id == medicine.id);
+      });
+    }
   }
 
   @override
@@ -195,6 +215,7 @@ class _AddOutOfStockMedicineSheetState extends State<AddOutOfStockMedicineSheet>
         ),
         child: Column(
           mainAxisSize: MainAxisSize.max,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             ClipRRect(
               borderRadius: const BorderRadius.only(
@@ -222,7 +243,7 @@ class _AddOutOfStockMedicineSheetState extends State<AddOutOfStockMedicineSheet>
               ),
             ),
             Padding(
-              padding: const EdgeInsets.only(left: 16.0, right: 16.0, top: 4.0, bottom: 8.0),
+              padding: const EdgeInsets.only(left: 16.0, right: 16.0, top: 4.0, bottom: 0.0),
               child: TextField(
                 controller: _searchController,
                 decoration: InputDecoration(
@@ -256,7 +277,19 @@ class _AddOutOfStockMedicineSheetState extends State<AddOutOfStockMedicineSheet>
                 },
               ),
             ),
-            if (_medicineSuggestions.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(left: 24.0,bottom: 8.0),
+              child: Text(
+                'Type or say the medicine name',
+                textAlign: TextAlign.left,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey[600],
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+            ),
+            if (_medicineSuggestions.isNotEmpty && !_isListening)
               Expanded(
                 child: ListView.builder(
                   itemCount: _medicineSuggestions.length,
@@ -270,10 +303,14 @@ class _AddOutOfStockMedicineSheetState extends State<AddOutOfStockMedicineSheet>
                           style: const TextStyle(fontWeight: FontWeight.bold),
                         ),
                         subtitle: Text('${suggestion.companyName}'),
-                        onTap: () {
-                          _searchController.text = suggestion.name;
-                          _updateMedicineQuantity(suggestion);
-                        },
+                        trailing: Switch(
+                          value: suggestion.quantityInStock == 0,
+                          onChanged: (value) => _toggleStockOut(suggestion),
+                          activeColor: Colors.red,
+                          inactiveThumbColor: Theme.of(context).primaryColor,
+                          inactiveTrackColor: Theme.of(context).primaryColor.withOpacity(0.5),
+                          trackOutlineColor: WidgetStateProperty.all(Colors.transparent),
+                        ),
                       ),
                     );
                   },
@@ -282,26 +319,45 @@ class _AddOutOfStockMedicineSheetState extends State<AddOutOfStockMedicineSheet>
             if (_isListening)
               Padding(
                 padding: const EdgeInsets.all(20.0),
-                child: Column(
-                  children: [
-                    const Text('Listening...\nSay the medicine name', style: TextStyle(fontStyle: FontStyle.italic)),
-                    const SizedBox(height: 10),
-                    if (_lastWords.isNotEmpty)
-                      Text('Recognized: $_lastWords'),
-                    const SizedBox(height: 20),
-                    ElevatedButton.icon(
-                      onPressed: _stopListening,
-                      icon: const Icon(Icons.mic_off),
-                      label: const Text('Stop Listening'),
-                      style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-                    ),
-                  ],
+                child: Center(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      const Text('Listening...\nSay the medicine name', style: TextStyle(fontStyle: FontStyle.italic)),
+                      const SizedBox(height: 10),
+                      if (_lastWords.isNotEmpty)
+                        Text('Recognized: $_lastWords'),
+                      const SizedBox(height: 20),
+                      ElevatedButton.icon(
+                        onPressed: _stopListening,
+                        icon: const Icon(Icons.mic_off),
+                        label: const Text('Stop Listening'),
+                        style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                      ),
+                    ],
+                  ),
                 ),
               )
             else if (_medicineSuggestions.isEmpty)
               const Padding(
                 padding: EdgeInsets.all(20.0),
-                child: Text("Write the medicine name \nOr speak the medicine name \nand click on the item to add it as out of stock",style: TextStyle(fontWeight: FontWeight.bold,fontSize: 16),textAlign: TextAlign.center,),
+                child: Center(
+                  child: Text.rich(
+                    TextSpan(
+                      children: [
+                        TextSpan(
+                          text: "No medicines found\n",
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                        ),
+                        TextSpan(
+                          text: "Type or Speak the medicine name correctly",
+                          style: TextStyle(fontSize: 14), // Smaller font size
+                        ),
+                      ],
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                )
               ),
           ],
         ),

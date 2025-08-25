@@ -62,12 +62,12 @@ class MedicineViewModel extends ChangeNotifier {
     });
   }
 
-  Future<List<Medicine>> getAllMedicines(String? userId, {bool isAnonymous = false}) async {
+  Future<List<Medicine>> getAllInStockMedicines(String? userId, {bool isAnonymous = false}) async {
     if (userId == null) return [];
     final completer = Completer<List<Medicine>>();
 
     final subscription = _firebaseService
-        .getAllMedicines(userId, isAnonymous: isAnonymous)
+        .getAllInStockMedicines(userId, isAnonymous: isAnonymous)
         .listen((snapshot) {
       final medicines = snapshot.docs
           .map((doc) => Medicine.fromMap(doc.data() as Map<String, dynamic>, doc.id))

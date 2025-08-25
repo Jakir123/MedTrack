@@ -268,9 +268,9 @@ class FirebaseService {
   }
   
   // Get all in-stock medicines (isFinished == false)
-  Stream<QuerySnapshot> getInStockMedicines(String userId, {bool isAnonymous = false}) {
+  Stream<QuerySnapshot> getAllInStockMedicines(String userId, {bool isAnonymous = false}) {
     return _getUserCollection(userId, 'medicines', isAnonymous)
-        .where('quantityInStock', isEqualTo: 0)
+        .where('quantityInStock', isGreaterThan: 0)
         .orderBy('name')
         .snapshots();
   }
