@@ -295,21 +295,27 @@ class _AddOutOfStockMedicineSheetState extends State<AddOutOfStockMedicineSheet>
                   itemCount: _medicineSuggestions.length,
                   itemBuilder: (context, index) {
                     final suggestion = _medicineSuggestions[index];
-                    return Container(
-                      color: index.isEven ? Colors.grey[100] : Colors.grey[150],
-                      child: ListTile(
-                        title: Text(
-                          '${suggestion.name} - ${suggestion.quantityInStock}',
-                          style: const TextStyle(fontWeight: FontWeight.bold),
+                    return Padding(
+                      padding: const EdgeInsets.only(left: 10.0,right: 10.0,bottom: 8.0),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Colors.grey[100],
+                          borderRadius: BorderRadius.circular(12), // Adjust the radius as needed
                         ),
-                        subtitle: Text('${suggestion.companyName}'),
-                        trailing: Switch(
-                          value: suggestion.quantityInStock == 0,
-                          onChanged: (value) => _toggleStockOut(suggestion),
-                          activeColor: Colors.red,
-                          inactiveThumbColor: Theme.of(context).primaryColor,
-                          inactiveTrackColor: Theme.of(context).primaryColor.withOpacity(0.5),
-                          trackOutlineColor: WidgetStateProperty.all(Colors.transparent),
+                        child: ListTile(
+                          title: Text(
+                            '${suggestion.name} - ${suggestion.quantityInStock}',
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          subtitle: Text('${suggestion.companyName}'),
+                          trailing: Switch(
+                            value: suggestion.quantityInStock == 0,
+                            onChanged: (value) => _toggleStockOut(suggestion),
+                            activeColor: Colors.red,
+                            inactiveThumbColor: Theme.of(context).primaryColor,
+                            inactiveTrackColor: Theme.of(context).primaryColor.withOpacity(0.5),
+                            trackOutlineColor: WidgetStateProperty.all(Colors.transparent),
+                          ),
                         ),
                       ),
                     );
