@@ -15,9 +15,10 @@ import 'package:firebase_core/firebase_core.dart';
 @pragma('vm:entry-point')
 class NotificationService {
   static final FlutterLocalNotificationsPlugin _notifications = FlutterLocalNotificationsPlugin();
-  static const channelId = 'todo_reminders';
-  static const channelName = 'Todo Reminders';
-  static const channelDescription = 'Notifications for upcoming todos';
+  static const channelId = 'medicine_reminders';
+  static const channelName = 'Medicine Reminders';
+  static const channelDescription = 'Notifications for low stock items';
+  static const alarmId = 111;
 
   static Future<void> initialize() async {
     tz.initializeTimeZones();
@@ -57,12 +58,7 @@ class NotificationService {
   }
 
 
-  static Future<void> cancelAllReminders() async {
-    await _notifications.cancelAll();
-  }
-
-
-  static Future<void> showNotification(String title, String description, int id) async {
+  static Future<void> _showNotification(String title, String description, int id) async {
     const androidDetails = AndroidNotificationDetails(
       channelId,
       channelName,
@@ -75,7 +71,7 @@ class NotificationService {
       visibility: NotificationVisibility.public,
       enableLights: true,
       color: const Color(0xFF2196F3),
-      ticker: 'Todo Reminder',
+      ticker: 'Daily Reminder',
       groupKey: channelId,
     );
 
@@ -92,63 +88,17 @@ class NotificationService {
       description,
       notificationDetails,
     );
-    try {
-    final docId = await SessionManager.getDocId(id);
-    var user = FirebaseAuth.instance.currentUser;
-    
-    // Only proceed with Firebase operations if user is authenticated
-    if (user != null) {
-      bool isAuthenticated = !user.isAnonymous;
-      try {
-        await FirebaseService().updateTodoReminderStatus(
-          userId: user.uid,
-          docId: docId,
-          reminder: false,
-          isAnonymous: !isAuthenticated,
-        );
-      } catch (e) {
-        print('Error updating Firebase status: $e');
-      }
-    }
-  } catch (e) {
-    print('Error in notification handling: $e');
-  } finally {
-    // Always clean up the notification info
-    await removeNotificationInfo(id);
-  }
   }
 
 
   static Future<bool> checkAndScheduleReminderUsingAlarmManager(
-      BuildContext context,
-      String title,
-      String description,
-      DateTime dueDateTime,
-      String id,
+      TimeOfDay time,
       ) async {
     try {
       // First check exact alarms permission
       if (!Platform.isAndroid) {
         return false;
       }
-
-      // final androidInfo = await DeviceInfoPlugin().androidInfo;
-      // final sdkInt = androidInfo.version.sdkInt;
-      //
-      // if (sdkInt >= 31) { // Android 12 and above
-      //   final hasPermission = await Permission.scheduleExactAlarm.isGranted;
-      //   if (!hasPermission) {
-      //     await showModalBottomSheet(
-      //       context: context,
-      //       isScrollControlled: true,
-      //       shape: const RoundedRectangleBorder(
-      //         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      //       ),
-      //       builder: (context) => const PermissionScreen(),
-      //     );
-      //     return false;
-      //   }
-      // }
 
       // Then check notification permission
       final status = await Permission.notification.status;
@@ -159,21 +109,19 @@ class NotificationService {
         }
       }
 
-      // Get the local time zone
-      final localTimeZone = tz.local;
-      final location = tz.getLocation(await FlutterTimezone.getLocalTimezone());
-      // Convert dueDateTime to local time zone while preserving the time
-      final scheduledTime = tz.TZDateTime(
-        location,
-        dueDateTime.year,
-        dueDateTime.month,
-        dueDateTime.day,
-        dueDateTime.hour,
-        dueDateTime.minute,
-      );
+      // final location = tz.getLocation(await FlutterTimezone.getLocalTimezone());
+      // // Convert dueDateTime to local time zone while preserving the time
+      // final scheduledTime = tz.TZDateTime(
+      //   location,
+      //   dueDateTime.year,
+      //   dueDateTime.month,
+      //   dueDateTime.day,
+      //   dueDateTime.hour,
+      //   dueDateTime.minute,
+      // );
 
       // Schedule the notification
-      await scheduleAlarm(scheduledTime, title, description,id, id.hashCode);
+      await _scheduleDailyAlarm(time);
 
       return true;
     } catch (e) {
@@ -182,25 +130,59 @@ class NotificationService {
     }
   }
 
-  static Future<void> scheduleAlarm(
+  static Future<void> _scheduleAlarm(
       DateTime dateTime,
-      String title,
-      String description,
-      String docId,
       int alarmId
       ) async {
     print("Alarm Time: $dateTime");
     var status = await AndroidAlarmManager.oneShotAt(
       dateTime,
       alarmId,
-      alarmCallback,
+      _alarmCallback,
       exact: false,
       wakeup: true,
     );
-    if (status) {
-      SessionManager.setDocId(docId, alarmId);
-      SessionManager.setNotificationTitle(title, alarmId);
-      SessionManager.setNotificationDescription(description, alarmId);
+  }
+
+  static Future<void> _scheduleDailyAlarm(TimeOfDay time) async {
+    try {
+      // Get current time in local timezone
+      final now = tz.TZDateTime.now(tz.local);
+      final location = tz.getLocation(await FlutterTimezone.getLocalTimezone());
+
+      // Create scheduled date in local timezone
+      var scheduledDate = tz.TZDateTime(
+        location,
+        now.year,
+        now.month,
+        now.day,
+        time.hour,
+        time.minute,
+      );
+
+      // If the time has already passed today, schedule for next day
+      if (scheduledDate.isBefore(now)) {
+        scheduledDate = scheduledDate.add(const Duration(days: 1));
+      }
+
+      print('📅 Setting up daily alarm for');
+      print('⏰ First alarm at: $scheduledDate');
+
+      // Schedule the periodic alarm
+      await AndroidAlarmManager.periodic(
+        const Duration(days: 1),  // Repeat every day
+        alarmId,                  // Use the same ID for this alarm
+        _alarmCallback,           // Your callback function
+        startAt: scheduledDate,   // First trigger time
+        exact: true,              // Exact timing
+        wakeup: true,             // Wake up device if needed
+        rescheduleOnReboot: true, // Reschedule after device reboot
+      );
+
+      print('✅ Daily alarm scheduled successfully');
+    } catch (e) {
+      print('❌ Error scheduling daily alarm: $e');
+      rethrow;
     }
   }
 
@@ -217,30 +199,38 @@ class NotificationService {
   }
 
   @pragma('vm:entry-point')
-  static Future<void> alarmCallback(int id) async {
+  static Future<void> _alarmCallback(int id) async {
     print("Alarm Triggered!");
-    final title = await SessionManager.getNotificationTitle(id);
-    final description = await SessionManager.getNotificationDescription(id);
+    final title = "Medication Reminder";
+    final description = "Time to check your out of stock medications and call the representative!";
     
     // Initialize Firebase before showing notification
     await _initializeFirebase();
     
-    await NotificationService.showNotification(title, description, id);
+    await _showNotification(title, description, id);
   }
 
-  static Future<void> cancelAlarm(int id) async {
+  static Future<void> cancelAlarm() async {
     try {
-      final success = await AndroidAlarmManager.cancel(id);
-      print(success ? "Alarm $id cancelled successfully" : "Failed to cancel alarm $id");
-      if (success) {
-        removeNotificationInfo(id);
-      }
+      final success = await AndroidAlarmManager.cancel(alarmId);
+      print(success ? "Alarm cancelled successfully" : "Failed to cancel alarm");
     } catch (e) {
       print('Error cancelling alarm: $e');
     }
   }
 
-  static Future<void> removeNotificationInfo(int id) async {
-    await SessionManager.removeNotification(id);
+
+  // Check if a medicine is low in stock and show notification if needed
+  static Future<void> checkLowStockAndNotify(
+      String medicineName,
+      int currentStock,
+      ) async {
+    var isEnabled = await SessionManager.areNotificationsEnabled();
+    if (!isEnabled) return;
+    var threshold = int.parse(await SessionManager.getLowStockThreshold());
+    if (currentStock <= threshold) {
+      await _showNotification("Low Stock Alert","$medicineName is running low! Only $currentStock left.",0);
+    }
   }
+
 }

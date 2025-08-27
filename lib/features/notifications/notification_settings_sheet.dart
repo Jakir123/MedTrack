@@ -3,6 +3,8 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../utils/notification_service.dart';
+import '../../utils/notification_service_new.dart';
 import '../../utils/session_manager.dart';
 
 class NotificationSettingsSheet extends StatefulWidget {
@@ -17,8 +19,6 @@ class _NotificationSettingsSheetState extends State<NotificationSettingsSheet> {
   TimeOfDay _notificationTime = TimeOfDay.now();
   final TextEditingController _thresholdController = TextEditingController();
   bool _notificationsEnabled = true;
-  final FlutterLocalNotificationsPlugin _flutterLocalNotificationsPlugin =
-      FlutterLocalNotificationsPlugin();
 
   @override
   void initState() {
@@ -46,11 +46,17 @@ class _NotificationSettingsSheetState extends State<NotificationSettingsSheet> {
     await SessionManager.setNotificationsEnabled(_notificationsEnabled);
 
     if (_notificationsEnabled) {
-      // Schedule the notification with new time if notifications are enabled
-      await _scheduleDailyNotification();
+      // await NotificationServiceV2().updateNotificationSettings(
+      //   enabled: true,
+      //   scheduledTime: TimeOfDay(hour: _notificationTime.hour, minute: _notificationTime.minute),
+      // );
+      await NotificationService.checkAndScheduleReminderUsingAlarmManager(TimeOfDay(hour: _notificationTime.hour, minute: _notificationTime.minute));
     } else {
       // Cancel all notifications if disabled
-      await _flutterLocalNotificationsPlugin.cancelAll();
+      // await NotificationServiceV2().updateNotificationSettings(
+      //   enabled: false,
+      // );
+      await NotificationService.cancelAlarm();
     }
     
     if (mounted) {
@@ -64,7 +70,6 @@ class _NotificationSettingsSheetState extends State<NotificationSettingsSheet> {
   }
 
   Future<void> _scheduleDailyNotification() async {
-    await _flutterLocalNotificationsPlugin.cancelAll();
 
     final now = DateTime.now();
     var scheduledDate = DateTime(

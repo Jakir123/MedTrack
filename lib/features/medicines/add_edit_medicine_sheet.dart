@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:med_track/utils/notification_service_new.dart';
 import 'package:provider/provider.dart';
 import 'package:med_track/features/medicines/medicine_model.dart';
 import 'package:med_track/features/medicines/medicine_viewmodel.dart';
 import 'package:med_track/features/companies/company_viewmodel.dart';
 import 'package:med_track/features/representatives/representative_viewmodel.dart';
 import 'package:med_track/widgets/custom_text_form_field.dart';
+
+import '../../utils/notification_service.dart';
 
 class AddEditMedicineSheet extends StatefulWidget {
   final Medicine? medicine;
@@ -143,6 +146,11 @@ class _AddEditMedicineSheetState extends State<AddEditMedicineSheet> {
           medicine,
           widget.userId,
           isAnonymous: widget.isAnonymous,
+        );
+
+        NotificationService.checkLowStockAndNotify(
+            medicine.name,  // Medicine name
+            medicine.quantityInStock!, // Current stock
         );
       }
 
