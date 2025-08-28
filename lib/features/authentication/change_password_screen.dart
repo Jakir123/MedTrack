@@ -162,7 +162,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                 // Change Password Button
                 SizedBox(
                   width: double.infinity,
-                  height: 50,
+                  height: 58,
                   child: ElevatedButton(
                     onPressed: vm.isLoading
                         ? null
