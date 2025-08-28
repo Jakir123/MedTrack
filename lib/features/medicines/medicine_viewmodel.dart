@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:med_track/features/medicines/medicine_model.dart';
 import 'package:med_track/utils/firebase_service.dart';
 
+import '../representatives/representative_model.dart';
 import 'medicine_list_screen.dart';
 
 class MedicineViewModel extends ChangeNotifier {
@@ -190,6 +191,25 @@ class MedicineViewModel extends ChangeNotifier {
       rethrow;
     } finally {
       _setLoading(false);
+    }
+  }
+
+  Future<String?> getRepresentativePhone(String? userId, String? representativeId) async {
+    if (userId == null || representativeId == null) return null;
+
+    try {
+      final doc = await _firebaseService.getRepresentative(userId, representativeId);
+      if (doc.exists) {
+        final rep = Representative.fromMap(
+          doc.data() as Map<String, dynamic>,
+          doc.id,
+        );
+        return rep.phone;
+      }
+      return null;
+    } catch (e) {
+      print('Error fetching representative: $e');
+      return null;
     }
   }
 

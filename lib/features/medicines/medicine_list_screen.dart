@@ -4,6 +4,7 @@ import 'package:med_track/features/medicines/medicine_model.dart';
 import 'package:med_track/features/medicines/medicine_viewmodel.dart';
 import 'package:med_track/widgets/search_bar.dart' as custom;
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 // Simple loading widget
 class LoadingIndicator extends StatelessWidget {
@@ -334,9 +335,9 @@ class _MedicineListScreenState extends State<MedicineListScreen> {
           ),
           Consumer<MedicineViewModel>(
             builder: (context, viewModel, _) {
-              if (viewModel.isLoading) {
-                return const Expanded(child: LoadingIndicator());
-              }
+              // if (viewModel.isLoading) {
+              //   return const Expanded(child: LoadingIndicator());
+              // }
 
               if (viewModel.error != null) {
                 return Expanded(
@@ -354,7 +355,7 @@ class _MedicineListScreenState extends State<MedicineListScreen> {
                   child: EmptyState(
                     icon: Icons.medication,
                     title: 'No Medicines Found',
-                    message: 'Add a new medicine to get started',
+                    message: 'To add new medicine, tap the + button',
                   ),
                 );
               }
@@ -390,7 +391,35 @@ class _MedicineListScreenState extends State<MedicineListScreen> {
                             if (medicine.companyName != null)
                               Text('Company: ${medicine.companyName}'),
                             if (medicine.representativeName != null)
-                              Text('Rep: ${medicine.representativeName}'),
+                              Row(
+                                children: [
+                                  Text('Rep: ${medicine.representativeName}'),
+                                  const SizedBox(width: 8),
+                                  IconButton(
+                                    icon: const Icon(Icons.call, size: 20),
+                                    padding: EdgeInsets.zero,
+                                    constraints: const BoxConstraints(),
+                                    onPressed: () async {
+                                      final phone = await context
+                                          .read<MedicineViewModel>()
+                                          .getRepresentativePhone(
+                                          widget.userId,
+                                          medicine.representativeId
+                                      );
+                                      if (phone != null) {
+                                        final url = 'tel:$phone';
+                                        if (await canLaunchUrl(Uri.parse(url))) {
+                                          await launchUrl(Uri.parse(url));
+                                        }
+                                      }else{
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          const SnackBar(content: Text('Representative phone number not found')),
+                                        );
+                                      }
+                                    },
+                                  ),
+                                ],
+                              ),
                             if (medicine.quantityInStock != null && medicine.quantityInStock! > 0)
                               Row(
                                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -408,6 +437,47 @@ class _MedicineListScreenState extends State<MedicineListScreen> {
                                         fontSize: 12,
                                       ),
                                     ),
+                                  ),
+                                  Row(
+                                    children: [
+                                      IconButton(
+                                        icon: const Icon(Icons.remove_circle_outline, size: 20),
+                                        padding: EdgeInsets.zero,
+                                        constraints: const BoxConstraints(),
+                                        onPressed: () async {
+                                          if (medicine.quantityInStock != null && medicine.quantityInStock! > 0) {
+                                            final updatedMedicine = medicine.copyWith(
+                                                quantityInStock: medicine.quantityInStock! - 1
+                                            );
+                                            await context.read<MedicineViewModel>().updateMedicine(
+                                              updatedMedicine,
+                                              widget.userId!,
+                                            );
+                                          }
+                                        },
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        '${medicine.quantityInStock}',
+                                        style: const TextStyle(fontSize: 14),
+                                      ),
+                                      const SizedBox(width: 4),
+                                      IconButton(
+                                        icon: const Icon(Icons.add_circle_outline, size: 20),
+                                        padding: EdgeInsets.zero,
+                                        constraints: const BoxConstraints(),
+                                        onPressed: () async {
+                                          final updatedMedicine = medicine.copyWith(
+                                              quantityInStock: (medicine.quantityInStock ?? 0) + 1
+                                          );
+                                          await context.read<MedicineViewModel>().updateMedicine(
+                                            updatedMedicine,
+                                            widget.userId!,
+                                          );
+                                        },
+                                      ),
+                                      const SizedBox(width: 8),
+                                    ],
                                   ),
                                   Switch(
                                     value: medicine.quantityInStock == 0,
@@ -437,14 +507,58 @@ class _MedicineListScreenState extends State<MedicineListScreen> {
                                       ),
                                     ),
                                   ),
-                                  // Switch(
-                                  //   value: medicine.quantityInStock == 0,
-                                  //   onChanged: (value) => _toggleStockOut(medicine),
-                                  //   activeColor: Colors.red,
-                                  //   inactiveThumbColor: Theme.of(context).primaryColor,
-                                  //   inactiveTrackColor: Theme.of(context).primaryColor.withOpacity(0.5),
-                                  //   trackOutlineColor: WidgetStateProperty.all(Colors.transparent),
-                                  // ),
+                                  Row(
+                                    children: [
+                                      IconButton(
+                                        icon: const Icon(Icons.remove_circle_outline, size: 20),
+                                        padding: EdgeInsets.zero,
+                                        constraints: const BoxConstraints(),
+                                        onPressed: () async {
+                                          if (medicine.quantityInStock != null && medicine.quantityInStock! > 0) {
+                                            final updatedMedicine = medicine.copyWith(
+                                                quantityInStock: medicine.quantityInStock! - 1
+                                            );
+                                            await context.read<MedicineViewModel>().updateMedicine(
+                                              updatedMedicine,
+                                              widget.userId!,
+                                            );
+                                          }
+                                        },
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        '${medicine.quantityInStock}',
+                                        style: const TextStyle(fontSize: 14),
+                                      ),
+                                      const SizedBox(width: 4),
+                                      IconButton(
+                                        icon: const Icon(Icons.add_circle_outline, size: 20),
+                                        padding: EdgeInsets.zero,
+                                        constraints: const BoxConstraints(),
+                                        onPressed: () async {
+                                          final updatedMedicine = medicine.copyWith(
+                                              quantityInStock: (medicine.quantityInStock ?? 0) + 1
+                                          );
+                                          await context.read<MedicineViewModel>().updateMedicine(
+                                            updatedMedicine,
+                                            widget.userId!,
+                                          );
+                                        },
+                                      ),
+                                      const SizedBox(width: 8),
+                                    ],
+                                  ),
+                                  Opacity(
+                                    opacity: 0.0,
+                                    child: Switch(
+                                      value: medicine.quantityInStock == 0,
+                                      onChanged: (value) {},
+                                      activeColor: Colors.red,
+                                      inactiveThumbColor: Theme.of(context).primaryColor,
+                                      inactiveTrackColor: Theme.of(context).primaryColor.withOpacity(0.5),
+                                      trackOutlineColor: WidgetStateProperty.all(Colors.transparent),
+                                    ),
+                                  ),
                                 ],
                               ),
                           ],

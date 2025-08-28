@@ -3,6 +3,7 @@ import 'package:med_track/features/medicines/add_edit_medicine_sheet.dart';
 import 'package:med_track/features/medicines/medicine_model.dart';
 import 'package:med_track/widgets/search_bar.dart' as custom;
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../medicine_list_screen.dart';
 import 'add_out_of_stock_medicine_sheet.dart';
@@ -275,7 +276,7 @@ class _OutOfStockMedicineListScreenState extends State<OutOfStockMedicineListScr
                   child: EmptyState(
                     icon: Icons.medication,
                     title: 'No Out of Stock Medicines Found',
-                    message: 'Add a new medicine to get started',
+                    message: 'To add out of stock medicine, tap the + button',
                   ),
                 );
               }
@@ -311,7 +312,35 @@ class _OutOfStockMedicineListScreenState extends State<OutOfStockMedicineListScr
                             if (medicine.companyName != null)
                               Text('Company: ${medicine.companyName}'),
                             if (medicine.representativeName != null)
-                              Text('Rep: ${medicine.representativeName}'),
+                              Row(
+                                children: [
+                                  Text('Rep: ${medicine.representativeName}'),
+                                  const SizedBox(width: 8),
+                                  IconButton(
+                                    icon: const Icon(Icons.call, size: 20),
+                                    padding: EdgeInsets.zero,
+                                    constraints: const BoxConstraints(),
+                                    onPressed: () async {
+                                      final phone = await context
+                                          .read<OutOfStockMedicineViewModel>()
+                                          .getRepresentativePhone(
+                                          widget.userId,
+                                          medicine.representativeId
+                                      );
+                                      if (phone != null) {
+                                        final url = 'tel:$phone';
+                                        if (await canLaunchUrl(Uri.parse(url))) {
+                                          await launchUrl(Uri.parse(url));
+                                        }
+                                      }else{
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          const SnackBar(content: Text('Representative phone number not found')),
+                                        );
+                                      }
+                                    },
+                                  ),
+                                ],
+                              ),
                             SizedBox(height: 8),
                             if (medicine.quantityInStock != null && medicine.quantityInStock! > 0)
                               Row(
