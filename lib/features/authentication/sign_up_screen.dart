@@ -47,17 +47,17 @@ class _SignUpScreenState extends State<SignUpScreen> {
       builder: (context, vm, _) => Scaffold(
           body: Center(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 8),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   Padding(
-                    padding: const EdgeInsets.only(bottom: 32),
+                    padding: const EdgeInsets.only(bottom: 42),
                     child: Image.asset(
                       'assets/icons/ic_logo.png',
-                      width: 72,
-                      height: 72,
+                      width: 140,
+                      height: 140,
                     ),
                   ),
                   Padding(

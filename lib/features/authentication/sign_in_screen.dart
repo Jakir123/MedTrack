@@ -61,18 +61,18 @@ class _SignInScreenState extends State<SignInScreen> {
               child: SingleChildScrollView(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 32,
-                  vertical: 16,
+                  vertical: 8,
                 ),
                 child: Column(
-                  mainAxisSize: MainAxisSize.min,
+                  mainAxisSize: MainAxisSize.max,
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     Padding(
-                      padding: const EdgeInsets.only(bottom: 32),
+                      padding: const EdgeInsets.only(bottom: 42),
                       child: Image.asset(
                         'assets/icons/ic_logo.png',
-                        width: 72,
-                        height: 72,
+                        width: 140,
+                        height: 140,
                       ), // Custom logo
                     ),
                     Padding(

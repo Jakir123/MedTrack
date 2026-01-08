@@ -159,7 +159,9 @@ class AuthViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
+      print('Sending password reset email to: $email');
       await _firebaseService.sendPasswordResetEmail(email);
+      print('Password reset email sent successfully');
       _isResettingPassword = false;
       notifyListeners();
       return true;

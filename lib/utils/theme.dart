@@ -44,7 +44,7 @@ final ThemeData lightTheme = ThemeData(
     type: BottomNavigationBarType.fixed,
     elevation: 8,
   ),
-  cardTheme: CardTheme(
+  cardTheme: CardThemeData(
     elevation: 1,
     shape: RoundedRectangleBorder(
       borderRadius: BorderRadius.circular(12),
@@ -132,7 +132,7 @@ final ThemeData darkTheme = ThemeData(
     type: BottomNavigationBarType.fixed,
     elevation: 8,
   ),
-  cardTheme: CardTheme(
+  cardTheme: CardThemeData(
     elevation: 2,
     color: kDarkSurface,
     shape: RoundedRectangleBorder(
