@@ -2,7 +2,6 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:med_track/features/medicines/medicine_model.dart';
 import 'package:med_track/utils/firebase_service.dart';
-
 import '../representatives/representative_model.dart';
 import 'medicine_list_screen.dart';
 
@@ -22,6 +21,9 @@ class MedicineViewModel extends ChangeNotifier {
   String? get searchQuery => _searchQuery;
   DateTime? get timeRangeStart => _timeRangeStart;
   DateTime? get timeRangeEnd => _timeRangeEnd;
+  Stream<List<Medicine>> get medicinesStream => _medicinesStreamController.stream;
+  final _medicinesStreamController = StreamController<List<Medicine>>.broadcast();
+  StreamSubscription? _subscription;
 
   // Get filtered medicines based on search and filters
   List<Medicine> get _filteredMedicines {
@@ -48,19 +50,33 @@ class MedicineViewModel extends ChangeNotifier {
   }
 
   // Initialize the view model with user ID
-  void initialize(String? userId, {bool isAnonymous = false}) {
+  Future<void> initialize(String? userId, {bool isAnonymous = false}) async {
     if (userId == null) return;
     
-    _firebaseService
-        .getAllMedicines(userId, isAnonymous: isAnonymous)
-        .listen((snapshot) {
-      _medicines = snapshot.docs
-          .map((doc) => Medicine.fromMap(doc.data() as Map<String, dynamic>, doc.id))
-          .toList();
-      notifyListeners();
-    }, onError: (error) {
-      _setError('Failed to load medicines: $error');
-    });
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+    
+    try {
+      await _subscription?.cancel();
+      
+      _subscription = _firebaseService
+          .getAllMedicines(userId, isAnonymous: isAnonymous)
+          .listen((snapshot) {
+        _medicines = snapshot.docs
+            .map((doc) => Medicine.fromMap(doc.data() as Map<String, dynamic>, doc.id))
+            .toList();
+        _medicinesStreamController.add(_filteredMedicines);
+        _isLoading = false;
+        notifyListeners();
+      }, onError: (error) {
+        _isLoading = false;
+        _setError('Failed to load medicines: $error');
+      });
+    } catch (e) {
+      _isLoading = false;
+      _setError('Failed to initialize: $e');
+    }
   }
 
   Future<List<Medicine>> getAllInStockMedicines(String? userId, {bool isAnonymous = false}) async {
@@ -89,11 +105,13 @@ class MedicineViewModel extends ChangeNotifier {
   // Set search query
   void setSearchQuery(String? query) {
     _searchQuery = query;
+    _medicinesStreamController.add(_filteredMedicines);
     notifyListeners();
   }
 
   void setTimeRangeFilter(DateTime? startDate) {
     _timeRangeStart = startDate;
+    _medicinesStreamController.add(_filteredMedicines);
     notifyListeners();
   }
 
@@ -221,9 +239,16 @@ class MedicineViewModel extends ChangeNotifier {
 
   void _setError(String message) {
     _error = message;
+    _isLoading = false;
     notifyListeners();
   }
 
+  @override
+  void dispose() {
+    _subscription?.cancel();
+    _medicinesStreamController.close();
+    super.dispose();
+  }
 
   void reset() {
     _isLoading = false;

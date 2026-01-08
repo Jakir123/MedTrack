@@ -223,7 +223,6 @@ class _HomeScreenState extends State<HomeScreen> {
         );
       case 1:
         return MedicineListScreen(
-          userId: widget.userId,
           isAnonymous: widget.isAnonymous,
         );
       case 2:

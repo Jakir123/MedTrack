@@ -6,6 +6,8 @@ import 'package:med_track/widgets/search_bar.dart' as custom;
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../utils/firebase_service.dart';
+
 // Simple loading widget
 class LoadingIndicator extends StatelessWidget {
   const LoadingIndicator({super.key});
@@ -103,12 +105,10 @@ class EmptyState extends StatelessWidget {
 }
 
 class MedicineListScreen extends StatefulWidget {
-  final String? userId;
   final bool isAnonymous;
 
   const MedicineListScreen({
     super.key,
-    required this.userId,
     this.isAnonymous = false,
   });
 
@@ -118,6 +118,8 @@ class MedicineListScreen extends StatefulWidget {
 
 class _MedicineListScreenState extends State<MedicineListScreen> {
   final Map<String, int> _originalQuantities = {};
+  final FirebaseService _firebaseService = FirebaseService();
+  late String _userId;
 
   void _hideKeyboard(){
     // Hide keyboard and clear focus
@@ -133,7 +135,7 @@ class _MedicineListScreenState extends State<MedicineListScreen> {
       if (originalQuantity != null) {
         await viewModel.updateMedicine(
           medicine.copyWith(quantityInStock: originalQuantity),
-          widget.userId,
+          _userId,
           isAnonymous: widget.isAnonymous,
         );
         _originalQuantities.remove(medicine.id);
@@ -143,7 +145,7 @@ class _MedicineListScreenState extends State<MedicineListScreen> {
       _originalQuantities[medicine.id] = medicine.quantityInStock!;
       await viewModel.updateMedicine(
         medicine.copyWith(quantityInStock: 0),
-        widget.userId,
+        _userId,
         isAnonymous: widget.isAnonymous,
       );
     }
@@ -205,11 +207,14 @@ class _MedicineListScreenState extends State<MedicineListScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final viewModel = context.read<MedicineViewModel>();
       viewModel.reset();
-      if (widget.userId != null) {
-        viewModel.initialize(widget.userId, isAnonymous: widget.isAnonymous);
+      final user = _firebaseService.getCurrentUser();
+      _userId = user?.uid ?? '';
+      if (_userId.isNotEmpty) {
+        viewModel.initialize(_userId, isAnonymous: widget.isAnonymous);
       }
     });
   }
+
 
   @override
   void dispose() {
@@ -224,7 +229,7 @@ class _MedicineListScreenState extends State<MedicineListScreen> {
       isScrollControlled: true,
       builder: (context) => AddEditMedicineSheet(
         medicine: medicine,
-        userId: widget.userId,
+        userId: _userId,
         isAnonymous: widget.isAnonymous,
       ),
     );
@@ -232,6 +237,8 @@ class _MedicineListScreenState extends State<MedicineListScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final viewModel = context.watch<MedicineViewModel>();
+    
     return Scaffold(
       body: Column(
         children: [
@@ -247,7 +254,7 @@ class _MedicineListScreenState extends State<MedicineListScreen> {
                         controller: _searchController,
                         hintText: 'Search medicines...',
                         onChanged: (value) {
-                          context.read<MedicineViewModel>().setSearchQuery(value);
+                          viewModel.setSearchQuery(value);
                         },
                       ),
                     ),
@@ -267,25 +274,25 @@ class _MedicineListScreenState extends State<MedicineListScreen> {
                             return PopupMenuItem<SortField>(
                               value: field,
                               child: Row(
-                                  children: [
-                                    Icon(
-                                      field == SortField.name 
-                                          ? Icons.sort_by_alpha
-                                          : Icons.sort,
+                                children: [
+                                  Icon(
+                                    field == SortField.name 
+                                        ? Icons.sort_by_alpha
+                                        : Icons.sort,
+                                    color: field == _sortField 
+                                        ? Theme.of(context).colorScheme.primary
+                                        : Theme.of(context).colorScheme.onSurface,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    field.displayName,
+                                    style: TextStyle(
                                       color: field == _sortField 
                                           ? Theme.of(context).colorScheme.primary
                                           : Theme.of(context).colorScheme.onSurface,
                                     ),
-                                    const SizedBox(width: 8),
-                                    Text(
-                                      field.displayName,
-                                      style: TextStyle(
-                                        color: field == _sortField 
-                                            ? Theme.of(context).colorScheme.primary
-                                            : Theme.of(context).colorScheme.onSurface,
-                                      ),
-                                    ),
-                                  ],
+                                  ),
+                                ],
                               ),
                             );
                           }).toList(),
@@ -333,11 +340,12 @@ class _MedicineListScreenState extends State<MedicineListScreen> {
               ],
             ),
           ),
-          Consumer<MedicineViewModel>(
-            builder: (context, viewModel, _) {
-              // if (viewModel.isLoading) {
-              //   return const Expanded(child: LoadingIndicator());
-              // }
+          StreamBuilder<List<Medicine>>(
+            stream: viewModel.medicinesStream,
+            builder: (context, snapshot) {
+              if (viewModel.isLoading && !snapshot.hasData) {
+                return const Expanded(child: LoadingIndicator());
+              }
 
               if (viewModel.error != null) {
                 return Expanded(
@@ -350,7 +358,9 @@ class _MedicineListScreenState extends State<MedicineListScreen> {
                 );
               }
 
-              if (viewModel.medicines.isEmpty) {
+              final medicines = snapshot.data ?? [];
+              
+              if (medicines.isEmpty) {
                 return Expanded(
                   child: EmptyState(
                     icon: Icons.medication,
@@ -362,9 +372,9 @@ class _MedicineListScreenState extends State<MedicineListScreen> {
 
               return Expanded(
                 child: ListView.builder(
-                  itemCount: viewModel.medicines.length,
+                  itemCount: medicines.length,
                   itemBuilder: (context, index) {
-                    final medicine = viewModel.medicines[index];
+                    final medicine = medicines[index];
                     return Card(
                       margin: const EdgeInsets.symmetric(
                         horizontal: 16,
@@ -403,7 +413,7 @@ class _MedicineListScreenState extends State<MedicineListScreen> {
                                       final phone = await context
                                           .read<MedicineViewModel>()
                                           .getRepresentativePhone(
-                                          widget.userId,
+                                          _userId,
                                           medicine.representativeId
                                       );
                                       if (phone != null) {
@@ -451,7 +461,7 @@ class _MedicineListScreenState extends State<MedicineListScreen> {
                                             );
                                             await context.read<MedicineViewModel>().updateMedicine(
                                               updatedMedicine,
-                                              widget.userId!,
+                                              _userId!,
                                             );
                                           }
                                         },
@@ -472,7 +482,7 @@ class _MedicineListScreenState extends State<MedicineListScreen> {
                                           );
                                           await context.read<MedicineViewModel>().updateMedicine(
                                             updatedMedicine,
-                                            widget.userId!,
+                                            _userId!,
                                           );
                                         },
                                       ),
@@ -520,7 +530,7 @@ class _MedicineListScreenState extends State<MedicineListScreen> {
                                             );
                                             await context.read<MedicineViewModel>().updateMedicine(
                                               updatedMedicine,
-                                              widget.userId!,
+                                              _userId!,
                                             );
                                           }
                                         },
@@ -541,7 +551,7 @@ class _MedicineListScreenState extends State<MedicineListScreen> {
                                           );
                                           await context.read<MedicineViewModel>().updateMedicine(
                                             updatedMedicine,
-                                            widget.userId!,
+                                            _userId!,
                                           );
                                         },
                                       ),
