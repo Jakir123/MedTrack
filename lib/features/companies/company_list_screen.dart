@@ -24,15 +24,17 @@ class _CompanyListScreenState extends State<CompanyListScreen> {
   void initState() {
     super.initState();
     _viewModel = context.read<CompanyViewModel>();
-    _initializeData();
-  }
-
-  Future<void> _initializeData() async {
     final user = _firebaseService.getCurrentUser();
     if (user != null) {
       _userId = user.uid;
-      await _viewModel.fetchCompanies(_userId, isAnonymous: widget.isAnonymous);
     }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _initializeData();
+    });
+  }
+
+  Future<void> _initializeData() async {
+    await _viewModel.fetchCompanies(_userId, isAnonymous: widget.isAnonymous);
   }
 
   @override

@@ -40,7 +40,6 @@ class _MyAppState extends State<MyApp> {
   bool _initialized = false;
   bool _onboardingCompleted = false;
   bool _isLoggedIn = false;
-  String? _userId = null;
   late StreamSubscription<User?> _authSubscription;
 
   @override
@@ -99,7 +98,6 @@ class _MyAppState extends State<MyApp> {
       isDark = themeMode == ThemeMode.dark;
       _onboardingCompleted = onboardingCompleted;
       _isLoggedIn = user != null && !user.isAnonymous;
-      _userId = user?.uid;
       _initialized = true;
     });
   }
@@ -167,7 +165,6 @@ class _MyAppState extends State<MyApp> {
 
             return HomeScreen(
               isDark: isDark,
-              userId: _userId,
               onThemeToggle: toggleTheme,
             );
           },

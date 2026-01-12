@@ -12,14 +12,12 @@ import 'menu/menu_screen.dart';
 class HomeScreen extends StatefulWidget {
   final bool isDark;
   final VoidCallback onThemeToggle;
-  final String? userId;
   final bool isAnonymous;
   
   const HomeScreen({
     super.key,
     required this.isDark,
     required this.onThemeToggle,
-    this.userId,
     this.isAnonymous = false,
   });
 
@@ -29,7 +27,7 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   bool _checkingAuth = true;
-
+  String? _userId = null;
   @override
   void initState() {
     super.initState();
@@ -40,6 +38,8 @@ class _HomeScreenState extends State<HomeScreen> {
     final authViewModel = Provider.of<AuthViewModel>(context, listen: false);
     if (authViewModel.user == null) {
       await authViewModel.signInAnonymously();
+    }else{
+      _userId = authViewModel.user!.uid;
     }
     setState(() {
       _checkingAuth = false;
@@ -218,7 +218,7 @@ class _HomeScreenState extends State<HomeScreen> {
     switch (index) {
       case 0:
         return OutOfStockMedicineListScreen(
-          userId: widget.userId,
+          userId: _userId,
           isAnonymous: widget.isAnonymous,
         );
       case 1:
