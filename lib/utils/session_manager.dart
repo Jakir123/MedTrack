@@ -5,13 +5,13 @@ import 'package:shared_preferences/shared_preferences.dart';
 class SessionManager{
 
   // user info
-  static Future<String> getUserName() async {
+  static Future<String> getUserEmail() async {
     final SharedPreferences pref = await SharedPreferences.getInstance();
-    return pref.getString("userName") ?? "";
+    return pref.getString("userEmail") ?? "";
   }
-  static Future<void> setUserName(String userName) async {
+  static Future<void> setUserEmail(String userEmail) async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
-    prefs.setString("userName", userName);
+    prefs.setString("userEmail", userEmail);
   }
 
   // Onboarding flag

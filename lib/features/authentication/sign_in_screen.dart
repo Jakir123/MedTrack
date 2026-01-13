@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:med_track/utils/session_manager.dart';
 import 'package:provider/provider.dart';
 import '../../widgets/custom_textfield.dart';
 import 'auth_viewmodel.dart';
@@ -29,6 +30,22 @@ class _SignInScreenState extends State<SignInScreen> {
     super.initState();
     _emailController = TextEditingController();
     _passwordController = TextEditingController();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadCredentials();
+    });
+  }
+
+  _loadCredentials() async {
+    var email = await SessionManager.getUserEmail();
+    if (email.isNotEmpty) {
+      _emailController.text = email;
+      // Also update the email in the view model
+      if (mounted) {
+        final vm = context.read<AuthViewModel>();
+        vm.setLoginEmail(email);
+      }
+    }
   }
 
   @override

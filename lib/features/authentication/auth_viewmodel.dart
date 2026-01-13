@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:med_track/utils/session_manager.dart';
 import '../../utils/firebase_service.dart';
 
 class AuthViewModel extends ChangeNotifier {
@@ -50,7 +51,7 @@ class AuthViewModel extends ChangeNotifier {
     try {
       final user = await _firebaseService.signInV2(_loginEmail, _loginPassword);
       _user = user;
-
+      SessionManager.setUserEmail(_loginEmail);
       notifyListeners();
       return true;
     } on FirebaseAuthException catch (e) {
