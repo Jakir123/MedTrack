@@ -1,19 +1,16 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:med_track/features/companies/company_model.dart';
 import 'package:med_track/features/companies/company_viewmodel.dart';
 import 'package:med_track/features/representatives/representative_model.dart';
 import 'package:med_track/features/representatives/representative_viewmodel.dart';
-import 'package:med_track/utils/firebase_service.dart';
-import 'package:cached_network_image/cached_network_image.dart';
+import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class RepresentativeListScreen extends StatefulWidget {
-  final bool isAnonymous;
-
+  final String? userId;
   const RepresentativeListScreen({
     super.key,
-    this.isAnonymous = false,
+    required this.userId,
   });
 
   @override
@@ -21,8 +18,6 @@ class RepresentativeListScreen extends StatefulWidget {
 }
 
 class _RepresentativeListScreenState extends State<RepresentativeListScreen> {
-  late final RepresentativeViewModel _viewModel;
-  final FirebaseService _firebaseService = FirebaseService();
   String? _userId;
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
@@ -37,7 +32,7 @@ class _RepresentativeListScreenState extends State<RepresentativeListScreen> {
   @override
   void initState() {
     super.initState();
-    _userId = widget.isAnonymous ? null : _firebaseService.getCurrentUser()?.uid;
+    _userId = widget.userId;
     // Initialize the ViewModel with user ID
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final viewModel = context.read<RepresentativeViewModel>();

@@ -226,7 +226,9 @@ class _HomeScreenState extends State<HomeScreen> {
           isAnonymous: widget.isAnonymous,
         );
       case 2:
-        return const RepresentativeListScreen();
+        return RepresentativeListScreen(
+          userId: _userId,
+        );
       case 3:
         return const CompanyListScreen();
       case 4:
