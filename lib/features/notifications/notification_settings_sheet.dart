@@ -1,5 +1,8 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -24,20 +27,54 @@ class _NotificationSettingsSheetState extends State<NotificationSettingsSheet> {
   void initState() {
     super.initState();
     _loadSettings();
+    _checkNotificationStatus();
+  }
+
+  Future<void> _checkNotificationStatus() async {
+    final isNotificationSettingEnabled = await SessionManager.areNotificationsEnabled();
+    if (Platform.isAndroid) {
+      final status = await Permission.notification.status;
+      if (mounted) {
+        setState(() {
+          _notificationsEnabled = status.isGranted && isNotificationSettingEnabled;
+        });
+      }
+    } else if (Platform.isIOS) {
+      final flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
+      final settings = await flutterLocalNotificationsPlugin
+          .resolvePlatformSpecificImplementation<IOSFlutterLocalNotificationsPlugin>()
+          ?.checkPermissions();
+      if (settings != null && mounted) {
+        setState(() {
+          _notificationsEnabled = settings.isEnabled && isNotificationSettingEnabled;
+        });
+      }
+    }
   }
 
   Future<void> _loadSettings() async {
-    final notificationTime = await SessionManager.getDailyNotificationTime();
-    final hour = notificationTime.split(':').first;
-    final minute = notificationTime.split(':').last;
-    final threshold = await SessionManager.getLowStockThreshold();
-    final isEnabled = await SessionManager.areNotificationsEnabled();
+    try {
+      final notificationTime = await SessionManager.getDailyNotificationTime();
+      final hour = notificationTime.split(':').first;
+      final minute = notificationTime.split(':').last;
+      final threshold = await SessionManager.getLowStockThreshold();
 
-    setState(() {
-      _notificationTime = TimeOfDay(hour: int.parse(hour), minute: int.parse(minute));
-      _thresholdController.text = threshold.toString();
-      _notificationsEnabled = isEnabled;
-    });
+      if (mounted) {
+        setState(() {
+          _notificationTime = TimeOfDay(hour: int.parse(hour), minute: int.parse(minute));
+          _thresholdController.text = threshold.toString();
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading settings: $e');
+      // Set default values if there's an error
+      if (mounted) {
+        setState(() {
+          _notificationTime = const TimeOfDay(hour: 9, minute: 0);
+          _thresholdController.text = '5';
+        });
+      }
+    }
   }
 
   Future<void> _saveSettings() async {
@@ -165,14 +202,52 @@ class _NotificationSettingsSheetState extends State<NotificationSettingsSheet> {
                   'Enable Notifications',
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
                 ),
-                Switch(
-                  value: _notificationsEnabled,
-                  onChanged: (bool value) {
-                    setState(() {
-                      _notificationsEnabled = value;
-                    });
+                FutureBuilder<bool>(
+                  future: _getNotificationPermissionStatus(),
+                  builder: (context, snapshot) {
+                    final hasPermission = snapshot.data ?? false;
+                    return Switch(
+                      value: _notificationsEnabled && hasPermission,
+                      onChanged: (bool value) async {
+                        if (value) {
+                          final granted = await _requestNotificationPermission();
+                          if (granted) {
+                            await SessionManager.setNotificationsEnabled(true);
+                            if (mounted) {
+                              setState(() {
+                                _notificationsEnabled = true;
+                              });
+                            }
+                          } else {
+                            // Show a message that notification permission is required
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Notification permission is required to enable notifications'),
+                                  duration: Duration(seconds: 2),
+                                ),
+                              );
+                              // Update the switch to reflect the actual state
+                              final currentState = await SessionManager.areNotificationsEnabled();
+                              if (mounted) {
+                                setState(() {
+                                  _notificationsEnabled = currentState;
+                                });
+                              }
+                            }
+                          }
+                        } else {
+                          await SessionManager.setNotificationsEnabled(false);
+                          if (mounted) {
+                            setState(() {
+                              _notificationsEnabled = false;
+                            });
+                          }
+                        }
+                      },
+                      activeColor: theme.primaryColor,
+                    );
                   },
-                  activeColor: theme.primaryColor,
                 ),
               ],
             ),
@@ -295,6 +370,44 @@ class _NotificationSettingsSheetState extends State<NotificationSettingsSheet> {
           ],
         ),
     );
+  }
+
+  Future<bool> _getNotificationPermissionStatus() async {
+    if (Platform.isAndroid) {
+      final status = await Permission.notification.status;
+      return status.isGranted;
+    } else if (Platform.isIOS) {
+      final flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
+      final settings = await flutterLocalNotificationsPlugin
+          .resolvePlatformSpecificImplementation<IOSFlutterLocalNotificationsPlugin>()
+          ?.checkPermissions();
+      return settings?.isEnabled ?? false;
+    }
+    return false;
+  }
+
+  Future<bool> _requestNotificationPermission() async {
+    if (Platform.isAndroid) {
+      final status = await Permission.notification.request();
+      if (status.isGranted) {
+        return true;
+      } else if (status.isPermanentlyDenied) {
+        // Open app settings if permission is permanently denied
+        await openAppSettings();
+      }
+      return false;
+    } else if (Platform.isIOS) {
+      final flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
+      final result = await flutterLocalNotificationsPlugin
+          .resolvePlatformSpecificImplementation<IOSFlutterLocalNotificationsPlugin>()
+          ?.requestPermissions(
+        alert: true,
+        badge: true,
+        sound: true,
+      );
+      return result ?? false;
+    }
+    return false;
   }
 
   @override

@@ -1,19 +1,18 @@
 import 'dart:async';
 
 import 'package:android_alarm_manager_plus/android_alarm_manager_plus.dart';
-import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:med_track/features/authentication/auth_screen.dart';
 import 'package:med_track/features/authentication/auth_viewmodel.dart';
 import 'package:med_track/features/companies/company_viewmodel.dart';
+import 'package:med_track/features/home_screen.dart';
 import 'package:med_track/features/medicines/medicine_viewmodel.dart';
 import 'package:med_track/features/medicines/out_of_stock/out_of_stock_medicine_viewmodel.dart';
-import 'package:med_track/features/representatives/representative_viewmodel.dart';
-import 'package:med_track/features/home_screen.dart';
 import 'package:med_track/features/onboarding_screen.dart';
+import 'package:med_track/features/representatives/representative_viewmodel.dart';
 import 'package:med_track/utils/notification_service.dart';
-import 'package:med_track/utils/notification_service_new.dart';
 import 'package:med_track/utils/session_manager.dart';
 import 'package:med_track/utils/theme.dart';
 import 'package:provider/provider.dart';
@@ -21,10 +20,25 @@ import 'package:timezone/data/latest.dart' as tz;
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp();
-  tz.initializeTimeZones(); // <-- REQUIRED for scheduling
-  await NotificationService.initialize();
-  await AndroidAlarmManager.initialize();
+  
+  try {
+    await Firebase.initializeApp();
+    tz.initializeTimeZones(); // <-- REQUIRED for scheduling
+    
+    // Initialize notifications but don't block app if it fails
+    try {
+      await NotificationService.initialize();
+    } catch (e) {
+      debugPrint('Failed to initialize notifications: $e');
+      // Continue running the app even if notifications fail
+    }
+    
+    await AndroidAlarmManager.initialize();
+  } catch (e) {
+    debugPrint('Error during initialization: $e');
+    // Continue running the app even if there are initialization errors
+  }
+  
   runApp(const MyApp());
 }
 

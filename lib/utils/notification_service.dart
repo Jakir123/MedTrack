@@ -1,16 +1,14 @@
 import 'dart:io';
 
 import 'package:android_alarm_manager_plus/android_alarm_manager_plus.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:med_track/utils/session_manager.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest.dart' as tz;
-import 'firebase_service.dart';
-import 'package:firebase_core/firebase_core.dart';
+import 'package:timezone/timezone.dart' as tz;
 
 @pragma('vm:entry-point')
 class NotificationService {
@@ -20,40 +18,94 @@ class NotificationService {
   static const channelDescription = 'Notifications for low stock items';
   static const alarmId = 111;
 
-  static Future<void> initialize() async {
-    tz.initializeTimeZones();
-    const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
-    const iosSettings = DarwinInitializationSettings();
-    const initializationSettings = InitializationSettings(
-      android: androidSettings,
-      iOS: iosSettings,
-    );
-    await _notifications.initialize(
-      initializationSettings,
-      onDidReceiveNotificationResponse: (details) {},
-    );
+  static bool _isInitialized = false;
+  static bool get isInitialized => _isInitialized;
+  static bool _permissionGranted = false;
+  static bool get hasPermission => _permissionGranted;
 
-    // Create notification channel
-    await _notifications.resolvePlatformSpecificImplementation<
-        AndroidFlutterLocalNotificationsPlugin>()?.createNotificationChannel(
-      const AndroidNotificationChannel(
-        channelId,
-        channelName,
-        description: channelDescription,
-        importance: Importance.max,
-        showBadge: true,
-      ),
-    );
+  /// Initializes the notification service and requests necessary permissions
+  /// Returns true if initialization was successful, false otherwise
+  static Future<bool> initialize() async {
+    try {
+      if (_isInitialized) return true;
+      
+      tz.initializeTimeZones();
+      
+      // Initialize notification plugin
+      const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
+      const iosSettings = DarwinInitializationSettings(
+        requestAlertPermission: true,
+        requestBadgePermission: true,
+        requestSoundPermission: true,
+      );
+      
+      const initializationSettings = InitializationSettings(
+        android: androidSettings,
+        iOS: iosSettings,
+      );
+      
+      await _notifications.initialize(
+        initializationSettings,
+        onDidReceiveNotificationResponse: (details) {},
+      );
 
-    // Request notification permission
-    if (Platform.isAndroid) {
-      final status = await Permission.notification.status;
-      if (!status.isGranted) {
-        final result = await Permission.notification.request();
-        if (!result.isGranted) {
-          throw Exception('Notification permission is required');
-        }
+      // Create notification channel for Android
+      if (Platform.isAndroid) {
+        await _notifications.resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin>()?.createNotificationChannel(
+          const AndroidNotificationChannel(
+            channelId,
+            channelName,
+            description: channelDescription,
+            importance: Importance.max,
+            showBadge: true,
+          ),
+        );
       }
+
+      // Request notification permission
+      if (Platform.isAndroid) {
+        _permissionGranted = await _requestAndroidNotificationPermission();
+      } else if (Platform.isIOS) {
+        _permissionGranted = await _requestIOSNotificationPermission();
+      }
+      
+      _isInitialized = true;
+      return _permissionGranted;
+    } catch (e) {
+      debugPrint('Error initializing notification service: $e');
+      _isInitialized = false;
+      _permissionGranted = false;
+      return false;
+    }
+  }
+  
+  static Future<bool> _requestAndroidNotificationPermission() async {
+    try {
+      final status = await Permission.notification.status;
+      if (status.isGranted) return true;
+      
+      final result = await Permission.notification.request();
+      return result.isGranted;
+    } catch (e) {
+      debugPrint('Error requesting notification permission: $e');
+      return false;
+    }
+  }
+  
+  static Future<bool> _requestIOSNotificationPermission() async {
+    try {
+      final result = await _notifications
+          .resolvePlatformSpecificImplementation<IOSFlutterLocalNotificationsPlugin>()
+          ?.requestPermissions(
+            alert: true,
+            badge: true,
+            sound: true,
+          );
+      return result ?? false;
+    } catch (e) {
+      debugPrint('Error requesting iOS notification permission: $e');
+      return false;
     }
   }
 
@@ -201,8 +253,8 @@ class NotificationService {
   @pragma('vm:entry-point')
   static Future<void> _alarmCallback(int id) async {
     print("Alarm Triggered!");
-    final title = "Medication Reminder";
-    final description = "Time to check your out of stock medications and call the representative!";
+    final title = "Medicine Reminder";
+    final description = "Time to check your out of stock medicines and call the representative!";
     
     // Initialize Firebase before showing notification
     await _initializeFirebase();
